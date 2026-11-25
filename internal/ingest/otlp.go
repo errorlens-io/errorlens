@@ -61,6 +61,9 @@ func (h *Handler) otlpLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	recs = logs.Clean(recs, scrub.New(key.Scrub), time.Now().UTC())
+	if h.Meter != nil {
+		h.Meter.Logs(key.OrgID, len(recs))
+	}
 	if err := logs.Enqueue(r.Context(), h.DB, key.OrgID, key.ProjectID, recs); err != nil {
 		h.Log.Error("ingest: enqueue otlp logs", "err", err)
 		fail(w, http.StatusServiceUnavailable, "temporarily unavailable")

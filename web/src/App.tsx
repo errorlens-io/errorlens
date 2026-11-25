@@ -8,9 +8,12 @@ import { LogsPage } from "./pages/Logs";
 import { ReleasesPage } from "./pages/Releases";
 import { InvitePage } from "./pages/Invite";
 import { SettingsPage } from "./pages/Settings";
+import { LoginPage, ResetPasswordPage, SignupPage, VerifyEmailPage } from "./pages/Auth";
+import { AccountPage } from "./pages/Account";
+import { AdminPage } from "./pages/Admin";
 import { linkProps, navigate, useLocation } from "./router";
 
-type Session = { user: User; organizations: Organization[] };
+type Session = { user: User; organizations: Organization[]; signupEnabled: boolean };
 type View = { kind: "loading" } | { kind: "setup" } | { kind: "login" } | { kind: "app"; session: Session };
 
 export function App() {
@@ -18,7 +21,8 @@ export function App() {
 
   const refresh = useCallback(async () => {
     try {
-      setView({ kind: "app", session: await api.me() });
+      const [me, cfg] = await Promise.all([api.me(), api.authConfig()]);
+      setView({ kind: "app", session: { ...me, signupEnabled: cfg.signupEnabled } });
     } catch (e) {
       if (!(e instanceof ApiError) || e.status !== 401) throw e;
       const { needsSetup } = await api.setupStatus();
@@ -30,10 +34,16 @@ export function App() {
     refresh();
   }, [refresh]);
 
-  // Invitation links work whether or not someone is signed in.
-  const invite = location.pathname.match(/^\/invite\/([A-Za-z0-9_-]+)$/);
-  if (invite && view.kind !== "loading") {
-    return <InvitePage token={invite[1]} onDone={refresh} Brand={Brand} />;
+  // Token links work whether or not someone is signed in.
+  const tokenRoute = location.pathname.match(/^\/(invite|verify-email|reset-password)\/([A-Za-z0-9_-]+)$/);
+  if (tokenRoute && view.kind !== "loading") {
+    const [, kind, token] = tokenRoute;
+    if (kind === "invite") return <InvitePage token={token} onDone={refresh} Brand={Brand} />;
+    if (kind === "verify-email") return <VerifyEmailPage token={token} Brand={Brand} />;
+    return <ResetPasswordPage token={token} Brand={Brand} />;
+  }
+  if (view.kind === "login" && location.pathname === "/signup") {
+    return <SignupPage onDone={refresh} Brand={Brand} />;
   }
 
   switch (view.kind) {
@@ -42,7 +52,7 @@ export function App() {
     case "setup":
       return <SetupPage onDone={refresh} />;
     case "login":
-      return <LoginPage onDone={refresh} />;
+      return <LoginPage onDone={refresh} Brand={Brand} />;
     case "app":
       return <Shell session={view.session} onLogout={refresh} />;
   }
@@ -102,29 +112,6 @@ function SetupPage({ onDone }: { onDone: () => void }) {
   );
 }
 
-function LoginPage({ onDone }: { onDone: () => void }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const { error, busy, submit } = useSubmit(async () => {
-    await api.login(email, password);
-    onDone();
-  });
-  return (
-    <div className="center">
-      <form className="card auth" onSubmit={submit}>
-        <Brand />
-        <h1>Sign in</h1>
-        <label>Email<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></label>
-        <label>
-          Password
-          <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
-        </label>
-        {error && <p className="error">{error}</p>}
-        <button disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
-      </form>
-    </div>
-  );
-}
 
 function Shell({ session, onLogout }: { session: Session; onLogout: () => void }) {
   const { path, search } = useLocation();
@@ -148,6 +135,10 @@ function Shell({ session, onLogout }: { session: Session; onLogout: () => void }
     page = <IssueDetailPage key={parts[2]} org={org.slug} id={Number(parts[2])} role={org.role} />;
   } else if (section === "projects") {
     page = <ProjectsPage org={org} />;
+  } else if (section === "account") {
+    page = <AccountPage user={session.user} canCreateOrg={session.user.isSuperuser || session.signupEnabled} onChanged={onLogout} />;
+  } else if (section === "admin" && session.user.isSuperuser) {
+    page = <AdminPage />;
   } else if (section === "logs") {
     page = <LogsPage org={org.slug} search={search} />;
   } else if (section === "releases") {
@@ -184,9 +175,15 @@ function Shell({ session, onLogout }: { session: Session; onLogout: () => void }
           </select>
         )}
         <div className="spacer" />
-        <span className="muted user-email">{session.user.email}</span>
+        {session.user.isSuperuser && <a className={`nav-extra ${section === "admin" ? "active" : ""}`} {...linkProps(`/${org.slug}/admin`)}>Admin</a>}
+        <a className="muted user-email" {...linkProps(`/${org.slug}/account`)}>{session.user.email}</a>
         <button className="ghost" onClick={logout}>Sign out</button>
       </header>
+      {!session.user.emailVerified && (
+        <div className="banner">Please confirm your email address — check your inbox for the link.{" "}
+          <button className="linklike" onClick={() => api.resendVerification().then(() => alert("Sent.")).catch((e) => alert(e.message))}>Resend</button>
+        </div>
+      )}
       <main>{page}</main>
     </div>
   );

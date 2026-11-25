@@ -30,6 +30,7 @@ import (
 	"github.com/rootcausehq/rootcause/internal/process"
 	"github.com/rootcausehq/rootcause/internal/queue"
 	"github.com/rootcausehq/rootcause/internal/scrub"
+	"github.com/rootcausehq/rootcause/internal/usage"
 )
 
 // Size limits (SDKs keep events well below these).
@@ -48,6 +49,9 @@ type Handler struct {
 
 	mu    sync.Mutex
 	cache map[string]cachedKey // public key -> project
+
+	// Meter, when set, enforces monthly quotas and records usage.
+	Meter *usage.Meter
 
 	// Extra handles additional envelope item types (e.g. transactions,
 	// check-ins). It returns true if it consumed the item.
@@ -180,6 +184,9 @@ func (h *Handler) envelope(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(logRecords) > 0 {
 		recs := logs.Clean(logRecords, scrub.New(key.Scrub), time.Now().UTC())
+		if h.Meter != nil {
+			h.Meter.Logs(key.OrgID, len(recs))
+		}
 		if err := logs.Enqueue(r.Context(), h.DB, key.OrgID, key.ProjectID, recs); err != nil {
 			h.Log.Error("ingest: enqueue logs", "err", err)
 			fail(w, http.StatusServiceUnavailable, "temporarily unavailable")
@@ -247,13 +254,26 @@ func (h *Handler) store(w http.ResponseWriter, r *http.Request) {
 
 // allow applies the per-key rate limit; SDKs back off when they see the rate-limit header.
 func (h *Handler) allow(w http.ResponseWriter, key *projectKey, n int) bool {
+	if n == 0 {
+		return true
+	}
 	for i := 0; i < n; i++ {
 		if !h.limiter.Allow(key.ProjectID.String()) {
+			if h.Meter != nil {
+				h.Meter.Dropped(key.OrgID, n)
+			}
 			w.Header().Set("Retry-After", "1")
 			w.Header().Set(hdrRateLimits, "1::key")
 			fail(w, http.StatusTooManyRequests, "rate limit exceeded")
 			return false
 		}
+	}
+	if h.Meter != nil && !h.Meter.Allow(context.Background(), key.OrgID, n) {
+		// Monthly quota reached: tell SDKs to back off for an hour.
+		w.Header().Set("Retry-After", "3600")
+		w.Header().Set(hdrRateLimits, "3600::organization:quota_exceeded")
+		fail(w, http.StatusTooManyRequests, "monthly event quota exceeded")
+		return false
 	}
 	return true
 }

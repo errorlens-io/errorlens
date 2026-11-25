@@ -69,3 +69,26 @@ func TestLimiter(t *testing.T) {
 		t.Fatal("keys must be independent")
 	}
 }
+
+func TestTOTP(t *testing.T) {
+	// RFC 6238 test vector (SHA-1, secret "12345678901234567890", T=59 -> 94287082, last 6 digits).
+	secret := []byte("12345678901234567890")
+	if got := TOTPCode(secret, time.Unix(59, 0)); got != "287082" {
+		t.Fatalf("code = %s", got)
+	}
+	now := time.Now()
+	code := TOTPCode(secret, now)
+	if !VerifyTOTP(secret, code, now) || !VerifyTOTP(secret, code, now.Add(30*time.Second)) {
+		t.Fatal("valid code rejected")
+	}
+	if VerifyTOTP(secret, code, now.Add(2*time.Minute)) {
+		t.Fatal("stale code accepted")
+	}
+	codes, hashes, _ := NewRecoveryCodes()
+	if len(codes) != 10 || HashRecoveryCode(strings.ToUpper(codes[0])) != hashes[0] {
+		t.Fatal("recovery code hashing")
+	}
+	if !strings.HasPrefix(TOTPURI(secret, "a@b.c", "RootCause"), "otpauth://totp/RootCause:a@b.c?") {
+		t.Fatal(TOTPURI(secret, "a@b.c", "RootCause"))
+	}
+}

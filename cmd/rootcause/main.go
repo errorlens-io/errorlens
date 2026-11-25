@@ -14,11 +14,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/rootcausehq/rootcause/internal/alert"
 	"github.com/rootcausehq/rootcause/internal/api"
+	"github.com/rootcausehq/rootcause/internal/billing"
 	"github.com/rootcausehq/rootcause/internal/config"
 	"github.com/rootcausehq/rootcause/internal/crypto"
 	"github.com/rootcausehq/rootcause/internal/db"
@@ -28,6 +30,7 @@ import (
 	"github.com/rootcausehq/rootcause/internal/queue"
 	"github.com/rootcausehq/rootcause/internal/retention"
 	"github.com/rootcausehq/rootcause/internal/sourcemap"
+	"github.com/rootcausehq/rootcause/internal/usage"
 	"github.com/rootcausehq/rootcause/internal/version"
 	"github.com/rootcausehq/rootcause/web"
 )
@@ -39,7 +42,7 @@ func main() {
 	}
 }
 
-func usage() {
+func printUsage() {
 	fmt.Fprint(os.Stderr, `Usage: rootcause <command> [flags]
 
 Commands:
@@ -59,12 +62,15 @@ Configuration is read from environment variables (see README):
   ROOTCAUSE_ALLOW_PRIVATE_WEBHOOKS  Allow alert webhooks to private addresses (default false)
   ROOTCAUSE_SIGNUP_ENABLED   Let anyone create an organization (hosted mode, default false)
   ROOTCAUSE_ENCRYPTION_KEY   Base64 32-byte key; encrypts stored event payloads (openssl rand -base64 32)
+  ROOTCAUSE_FREE_EVENT_QUOTA Monthly events for organizations created by sign-up (default 5000)
+  ROOTCAUSE_OIDC_ISSUER, _CLIENT_ID, _CLIENT_SECRET, _NAME, _AUTO_JOIN_ORG, _DEFAULT_ROLE, _ALLOWED_DOMAINS   SSO
+  ROOTCAUSE_STRIPE_SECRET_KEY, _WEBHOOK_SECRET, _PLANS (id:price_id:events,...)   Hosted billing
 `)
 }
 
 func run(args []string) error {
 	if len(args) == 0 {
-		usage()
+		printUsage()
 		return errors.New("missing command")
 	}
 	switch args[0] {
@@ -78,22 +84,26 @@ func run(args []string) error {
 	case "serve":
 		fs := flag.NewFlagSet("serve", flag.ExitOnError)
 		noMigrate := fs.Bool("no-migrate", false, "do not apply migrations on startup")
+		role := fs.String("role", roleAll, "all | web (HTTP only) | worker (background jobs only)")
 		_ = fs.Parse(args[1:])
+		if *role != roleAll && *role != roleWeb && *role != roleWorker {
+			return fmt.Errorf("--role must be all, web or worker")
+		}
 		return withDB(func(ctx context.Context, cfg *config.Config, d *db.DB, log *slog.Logger) error {
 			if !*noMigrate {
 				if err := migrate(ctx, d, log); err != nil {
 					return err
 				}
 			}
-			return serve(ctx, cfg, d, log)
+			return serve(ctx, cfg, d, log, *role)
 		})
 	case "sourcemaps":
 		return sourcemapsCmd(args[1:])
 	case "help", "-h", "--help":
-		usage()
+		printUsage()
 		return nil
 	default:
-		usage()
+		printUsage()
 		return fmt.Errorf("unknown command %q", args[0])
 	}
 }
@@ -136,17 +146,14 @@ func migrate(ctx context.Context, d *db.DB, log *slog.Logger) error {
 	return nil
 }
 
-func serve(ctx context.Context, cfg *config.Config, d *db.DB, log *slog.Logger) error {
-	srvAPI := api.New(cfg, d, log, web.FS())
-	srv := &http.Server{
-		Addr:              cfg.ListenAddr,
-		Handler:           srvAPI.Handler(),
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      60 * time.Second,
-		IdleTimeout:       120 * time.Second,
-	}
+// Roles let large installs run HTTP servers and background workers separately.
+const (
+	roleAll    = "all"
+	roleWeb    = "web"
+	roleWorker = "worker"
+)
 
+func serve(ctx context.Context, cfg *config.Config, d *db.DB, log *slog.Logger, role string) error {
 	masterKey, err := crypto.ParseMasterKey(cfg.EncryptionKey)
 	if err != nil {
 		return err
@@ -158,33 +165,63 @@ func serve(ctx context.Context, cfg *config.Config, d *db.DB, log *slog.Logger) 
 	if keyring != nil {
 		log.Info("event payload encryption enabled")
 	}
-	srvAPI.WithKeyring(keyring)
-
-	worker := queue.NewWorker(d.Pool, log)
-	worker.Handle(logs.JobKind, logs.Store(d))
-	alerts := &alert.Engine{
-		DB:        d,
-		Log:       log,
-		Sender:    &notify.Sender{HTTP: notify.NewHTTPClient(cfg.AllowPrivateWebhooks), SMTP: cfg.SMTP},
-		PublicURL: cfg.PublicURL,
+	stripe, err := billing.FromEnv(nil)
+	if err != nil {
+		return err
 	}
-	worker.Handle(process.JobKind, (&process.Processor{
-		DB: d, OnOutcome: alerts.OnOutcome, Keyring: keyring, SourceMaps: &sourcemap.Resolver{DB: d},
-	}).Handle)
-	worker.Handle(alert.EvaluateJob, alerts.Evaluate)
-	worker.Handle(alert.DeliverJob, alerts.Deliver)
-	workerDone := make(chan struct{})
-	go func() { worker.Run(ctx); close(workerDone) }()
+	oidcCfg := api.OIDCFromEnv(nil)
 
-	// Daily event partitions and retention clean-up.
-	maintCtx, stopMaint := context.WithCancel(ctx)
-	maintDone := make(chan struct{})
-	go func() { retention.Run(maintCtx, d, log); close(maintDone) }()
-	defer func() { stopMaint(); <-maintDone }()
+	var wg sync.WaitGroup
+	bg := func(fn func(context.Context)) {
+		wg.Add(1)
+		go func() { defer wg.Done(); fn(ctx) }()
+	}
 
+	if role == roleAll || role == roleWorker {
+		worker := queue.NewWorker(d.Pool, log)
+		worker.Handle(logs.JobKind, logs.Store(d))
+		alerts := &alert.Engine{
+			DB:        d,
+			Log:       log,
+			Sender:    &notify.Sender{HTTP: notify.NewHTTPClient(cfg.AllowPrivateWebhooks), SMTP: cfg.SMTP},
+			PublicURL: cfg.PublicURL,
+		}
+		worker.Handle(process.JobKind, (&process.Processor{
+			DB: d, OnOutcome: alerts.OnOutcome, Keyring: keyring, SourceMaps: &sourcemap.Resolver{DB: d},
+		}).Handle)
+		worker.Handle(alert.EvaluateJob, alerts.Evaluate)
+		worker.Handle(alert.DeliverJob, alerts.Deliver)
+		registerExtraJobs(worker, d, log, cfg)
+		bg(worker.Run)
+		bg(func(ctx context.Context) { retention.Run(ctx, d, log) })
+		bg(func(ctx context.Context) { runSchedulers(ctx, d, log, cfg) })
+		log.Info("background worker started")
+	}
+
+	if role == roleWorker {
+		<-ctx.Done()
+		log.Info("shutting down")
+		wg.Wait()
+		return nil
+	}
+
+	meter := usage.NewMeter(d, log)
+	srvAPI := api.New(cfg, d, log, web.FS()).WithKeyring(keyring).WithBilling(stripe).WithOIDC(oidcCfg)
+	srvAPI.Ingest().Meter = meter
+	registerExtraIngest(srvAPI, d, log)
+	bg(meter.Run)
+
+	srv := &http.Server{
+		Addr:              cfg.ListenAddr,
+		Handler:           srvAPI.Handler(),
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
 	errCh := make(chan error, 1)
 	go func() {
-		log.Info("rootcause listening", "addr", cfg.ListenAddr, "public_url", cfg.PublicURL.String(), "version", version.Version)
+		log.Info("rootcause listening", "addr", cfg.ListenAddr, "public_url", cfg.PublicURL.String(), "role", role, "version", version.Version)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
@@ -200,6 +237,6 @@ func serve(ctx context.Context, cfg *config.Config, d *db.DB, log *slog.Logger) 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	err = srv.Shutdown(shutdownCtx)
-	<-workerDone
+	wg.Wait()
 	return err
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/rootcausehq/rootcause/internal/auth"
+	"github.com/rootcausehq/rootcause/internal/billing"
 	"github.com/rootcausehq/rootcause/internal/config"
 	"github.com/rootcausehq/rootcause/internal/crypto"
 	"github.com/rootcausehq/rootcause/internal/db"
@@ -38,6 +39,8 @@ type Server struct {
 	sender       *notify.Sender
 	ingest       *ingest.Handler
 	keyring      *crypto.Keyring
+	billing      *billing.Stripe
+	oidc         *oidcProvider
 }
 
 // WithKeyring enables reading encrypted event payloads.
@@ -76,6 +79,9 @@ func (s *Server) Handler() http.Handler {
 	// SDK event ingestion: /api/{projectID}/envelope/ and /store/.
 	s.ingest.Routes(r)
 
+	// Payment provider webhooks authenticate by signature, not session.
+	r.Post("/webhooks/stripe", s.stripeWebhook)
+
 	r.Route("/api/0", func(r chi.Router) {
 		r.Use(limitBody(1<<20, 64<<20))
 		r.Use(s.sameOrigin)
@@ -88,12 +94,32 @@ func (s *Server) Handler() http.Handler {
 		r.Post("/setup", s.setup)
 		r.Post("/auth/login", s.login)
 		r.Post("/auth/logout", s.logout)
+		r.Post("/auth/login/mfa", s.loginMFA)
+		r.Post("/auth/signup", s.signup)
+		r.Post("/auth/verify-email", s.verifyEmail)
+		r.Post("/auth/password/forgot", s.forgotPassword)
+		r.Post("/auth/password/reset", s.resetPassword)
+		r.Get("/auth/config", s.authConfig)
+		r.Get("/auth/oidc/start", s.oidcStart)
+		r.Get("/auth/oidc/callback", s.oidcCallback)
 		r.Get("/invitations/{token}", s.getInvite)
 		r.Post("/invitations/{token}/accept", s.acceptInvite)
 
 		r.Group(func(r chi.Router) {
 			r.Use(requireUser)
 			r.Get("/auth/me", s.me)
+			r.Post("/auth/verify-email/resend", s.resendVerification)
+			r.Post("/auth/password", s.changePassword)
+			r.Get("/auth/mfa", s.mfaStatus)
+			r.Post("/auth/mfa/setup", s.mfaSetup)
+			r.Post("/auth/mfa/confirm", s.mfaConfirm)
+			r.Post("/auth/mfa/disable", s.mfaDisable)
+			r.Post("/organizations", s.createOrg)
+			r.Route("/admin", func(r chi.Router) {
+				r.Use(requireSuperuser)
+				r.Get("/organizations", s.adminListOrgs)
+				r.Put("/organizations/{orgID}", s.adminUpdateOrg)
+			})
 			r.Route("/organizations/{org}", func(r chi.Router) {
 				r.Use(s.loadOrg)
 				r.Get("/projects", s.listProjects)
@@ -134,6 +160,10 @@ func (s *Server) Handler() http.Handler {
 				r.With(admin).Get("/tokens", s.listTokens)
 				r.With(admin).Post("/tokens", s.createToken)
 				r.With(admin).Delete("/tokens/{tokenID}", s.deleteToken)
+
+				r.With(requireRole("owner")).Get("/billing", s.getBilling)
+				r.With(requireRole("owner")).Post("/billing/checkout", s.billingCheckout)
+				r.With(requireRole("owner")).Post("/billing/portal", s.billingPortal)
 
 				r.Get("/members", s.listMembers)
 				r.With(admin).Post("/members", s.invite)

@@ -1,6 +1,6 @@
 // Thin client for RootCause's JSON API. Cookies carry the session.
 
-export type User = { id: string; email: string; name: string; isSuperuser: boolean };
+export type User = { id: string; email: string; name: string; isSuperuser: boolean; emailVerified: boolean };
 export type Organization = { id: string; name: string; slug: string; role: string };
 export type Project = {
   id: string;
@@ -68,6 +68,14 @@ export type LogLine = { id: number; timestamp: string; project: string; severity
 export type Release = { version: string; project: string; firstEvent: string | null; lastEvent: string | null; createdAt: string; newIssues: number; files: number };
 export type APIToken = { id: string; name: string; prefix: string; role: string; createdAt: string; lastUsedAt: string | null };
 
+export type AuthConfig = { signupEnabled: boolean; emailEnabled: boolean; sso: { name: string } | null };
+export type BillingInfo = {
+  plan: string; quota: number | null; used: number; dropped: number; status: string; hasCustomer: boolean;
+  billingEnabled: boolean; plans?: { id: string; label: string; quota: number }[];
+  days: { day: string; accepted: number; dropped: number; logs: number }[];
+};
+export type AdminOrg = { id: string; name: string; slug: string; plan: string; quota: number | null; billingStatus: string; members: number; projects: number; usedThisMonth: number; createdAt: string };
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -98,7 +106,27 @@ export const api = {
   setupStatus: () => request<{ needsSetup: boolean }>("GET", "/setup/status"),
   setup: (b: { name: string; email: string; password: string; organizationName: string }) =>
     request<{ user: User; organization: Organization }>("POST", "/setup", b),
-  login: (email: string, password: string) => request<void>("POST", "/auth/login", { email, password }),
+  login: (email: string, password: string) =>
+    request<{ mfaRequired: true; mfaToken: string } | undefined>("POST", "/auth/login", { email, password }),
+  loginMFA: (mfaToken: string, code: string) => request<void>("POST", "/auth/login/mfa", { mfaToken, code }),
+  authConfig: () => request<AuthConfig>("GET", "/auth/config"),
+  signup: (b: { name: string; email: string; password: string; organizationName: string }) =>
+    request<{ organization: Organization; emailVerified: boolean }>("POST", "/auth/signup", b),
+  verifyEmail: (token: string) => request<{ verified: boolean }>("POST", "/auth/verify-email", { token }),
+  resendVerification: () => request<void>("POST", "/auth/verify-email/resend", {}),
+  forgotPassword: (email: string) => request<void>("POST", "/auth/password/forgot", { email }),
+  resetPassword: (token: string, password: string) => request<void>("POST", "/auth/password/reset", { token, password }),
+  changePassword: (currentPassword: string, newPassword: string) => request<void>("POST", "/auth/password", { currentPassword, newPassword }),
+  mfaStatus: () => request<{ enabled: boolean; recoveryCodesLeft: number }>("GET", "/auth/mfa"),
+  mfaSetup: () => request<{ secret: string; uri: string }>("POST", "/auth/mfa/setup", {}),
+  mfaConfirm: (code: string) => request<{ enabled: boolean; recoveryCodes: string[] }>("POST", "/auth/mfa/confirm", { code }),
+  mfaDisable: (password: string) => request<void>("POST", "/auth/mfa/disable", { password }),
+  createOrganization: (name: string) => request<Organization>("POST", "/organizations", { name }),
+  billing: (org: string) => request<BillingInfo>("GET", `/organizations/${org}/billing`),
+  billingCheckout: (org: string, plan: string) => request<{ url: string }>("POST", `/organizations/${org}/billing/checkout`, { plan }),
+  billingPortal: (org: string) => request<{ url: string }>("POST", `/organizations/${org}/billing/portal`, {}),
+  adminOrgs: () => request<AdminOrg[]>("GET", "/admin/organizations"),
+  adminUpdateOrg: (id: string, plan: string, quota: number | null) => request<{ ok: boolean }>("PUT", `/admin/organizations/${id}`, { plan, quota }),
   logout: () => request<void>("POST", "/auth/logout", {}),
   me: () => request<{ user: User; organizations: Organization[] }>("GET", "/auth/me"),
   projects: (org: string) => request<Project[]>("GET", `/organizations/${org}/projects`),

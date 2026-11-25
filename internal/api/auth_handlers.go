@@ -18,10 +18,11 @@ import (
 
 // User is the authenticated user attached to a request.
 type User struct {
-	ID          uuid.UUID `json:"id"`
-	Email       string    `json:"email"`
-	Name        string    `json:"name"`
-	IsSuperuser bool      `json:"isSuperuser"`
+	ID            uuid.UUID `json:"id"`
+	Email         string    `json:"email"`
+	Name          string    `json:"name"`
+	IsSuperuser   bool      `json:"isSuperuser"`
+	EmailVerified bool      `json:"emailVerified"`
 }
 
 type ctxKey int
@@ -54,10 +55,10 @@ func (s *Server) loadSession(next http.Handler) http.Handler {
 		hash := auth.HashToken(c.Value)
 		err = s.db.System(r.Context(), func(tx pgx.Tx) error {
 			err := tx.QueryRow(r.Context(), `
-				SELECT u.id, u.email, u.name, u.is_superuser, s.last_seen_at
+				SELECT u.id, u.email, u.name, u.is_superuser, u.email_verified_at IS NOT NULL, s.last_seen_at
 				FROM sessions s JOIN users u ON u.id = s.user_id
 				WHERE s.token_hash = $1 AND s.expires_at > now()`, hash,
-			).Scan(&u.ID, &u.Email, &u.Name, &u.IsSuperuser, &lastSeen)
+			).Scan(&u.ID, &u.Email, &u.Name, &u.IsSuperuser, &u.EmailVerified, &lastSeen)
 			if err != nil {
 				return err
 			}
@@ -238,6 +239,17 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 			return audit.Record(ctx, tx, audit.Entry{ActorID: userID, Action: audit.ActionLoginFailed, IP: ip})
 		})
 		writeError(w, http.StatusUnauthorized, "invalid email or password")
+		return
+	}
+	var mfa bool
+	_ = s.db.Pool.QueryRow(ctx, `SELECT totp_secret IS NOT NULL FROM users WHERE id = $1`, userID).Scan(&mfa)
+	if mfa {
+		tok, err := s.newUserToken(ctx, userID, "mfa_login", 5*time.Minute)
+		if err != nil {
+			s.internalError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"mfaRequired": true, "mfaToken": tok})
 		return
 	}
 	if err := s.startSession(w, r, userID); err != nil {

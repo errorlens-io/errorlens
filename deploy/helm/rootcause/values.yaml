@@ -1,0 +1,45 @@
+image:
+  repository: rootcausehq/rootcause
+  tag: ""            # defaults to the chart appVersion
+  pullPolicy: IfNotPresent
+
+# External URL users and SDKs reach RootCause on (used in DSNs and links).
+publicURL: https://errors.example.com
+
+# Postgres connection. Use an existing Secret with key DATABASE_URL, or set url.
+database:
+  existingSecret: ""
+  url: ""            # postgres://user:pass@host:5432/rootcause?sslmode=require
+
+# Optional: base64 32-byte key for encrypting stored events. Keep a backup!
+encryption:
+  existingSecret: "" # Secret with key ENCRYPTION_KEY
+  key: ""
+
+# Extra environment (SMTP, SSO, Stripe, ...). See `rootcause help`.
+env: {}
+#  ROOTCAUSE_SMTP_HOST: smtp.example.com
+#  ROOTCAUSE_TRUSTED_PROXIES: 10.0.0.0/8
+
+web:
+  replicas: 2
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { memory: 512Mi }
+
+worker:
+  replicas: 1
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { memory: 512Mi }
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: errors.example.com
+  tls: []

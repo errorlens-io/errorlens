@@ -29,6 +29,9 @@ type Config struct {
 	// SignupEnabled allows anyone to create an account and organization
 	// (hosted mode). Self-hosted instances usually keep it off.
 	SignupEnabled bool
+	// FreeEventQuota is the monthly event quota for new organizations created
+	// through sign-up (hosted mode).
+	FreeEventQuota int64
 
 	SMTP SMTP
 
@@ -107,6 +110,11 @@ func Load(getenv func(string) string) (*Config, error) {
 	cfg.AllowPrivateWebhooks = isTrue(get("ROOTCAUSE_ALLOW_PRIVATE_WEBHOOKS", "false"))
 	cfg.SignupEnabled = isTrue(get("ROOTCAUSE_SIGNUP_ENABLED", "false"))
 	cfg.EncryptionKey = get("ROOTCAUSE_ENCRYPTION_KEY", "")
+	q, err := strconv.ParseInt(get("ROOTCAUSE_FREE_EVENT_QUOTA", "5000"), 10, 64)
+	if err != nil || q < 0 {
+		return nil, fmt.Errorf("ROOTCAUSE_FREE_EVENT_QUOTA must be a non-negative number")
+	}
+	cfg.FreeEventQuota = q
 
 	cfg.SMTP = SMTP{
 		Host:     get("ROOTCAUSE_SMTP_HOST", ""),
