@@ -26,6 +26,7 @@ import (
 
 	"github.com/rootcausehq/rootcause/internal/auth"
 	"github.com/rootcausehq/rootcause/internal/db"
+	"github.com/rootcausehq/rootcause/internal/logs"
 	"github.com/rootcausehq/rootcause/internal/process"
 	"github.com/rootcausehq/rootcause/internal/queue"
 	"github.com/rootcausehq/rootcause/internal/scrub"
@@ -47,6 +48,10 @@ type Handler struct {
 
 	mu    sync.Mutex
 	cache map[string]cachedKey // public key -> project
+
+	// Extra handles additional envelope item types (e.g. transactions,
+	// check-ins). It returns true if it consumed the item.
+	Extra func(ctx context.Context, org, project uuid.UUID, sc scrub.Config, it Item) bool
 }
 
 type projectKey struct {
@@ -80,6 +85,10 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Options("/api/{projectID}/store/", noContent)
 		r.Post("/api/{projectID}/envelope/", h.envelope)
 		r.Post("/api/{projectID}/store/", h.store)
+		// OpenTelemetry logs (OTLP/HTTP, protobuf or JSON). Authenticate with the
+		// DSN public key: "Authorization: Bearer <key>" or "x-rootcause-key: <key>".
+		r.Options("/v1/logs", noContent)
+		r.Post("/v1/logs", h.otlpLogs)
 	})
 }
 
@@ -137,6 +146,7 @@ func (h *Handler) envelope(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var events []map[string]any
+	var logRecords []logs.Record
 	for _, it := range env.Items {
 		switch it.Type {
 		case "event":
@@ -150,13 +160,31 @@ func (h *Handler) envelope(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			events = append(events, ev)
+		case "log":
+			recs, err := logs.ParseEnvelopeItem(it.Payload)
+			if err != nil {
+				h.Log.Debug("ingest: bad log item", "err", err)
+				continue
+			}
+			logRecords = append(logRecords, recs...)
 		default:
-			// transaction, session(s), attachment, client_report, replay, profile,
-			// check_in, log, span …: accepted but not stored yet, so SDKs don't retry.
+			if h.Extra != nil && h.Extra(r.Context(), key.OrgID, key.ProjectID, key.Scrub, it) {
+				continue
+			}
+			// session(s), attachment, client_report, replay, profile …:
+			// accepted but not stored, so SDKs don't retry.
 		}
 	}
 	if !h.allow(w, key, len(events)) {
 		return
+	}
+	if len(logRecords) > 0 {
+		recs := logs.Clean(logRecords, scrub.New(key.Scrub), time.Now().UTC())
+		if err := logs.Enqueue(r.Context(), h.DB, key.OrgID, key.ProjectID, recs); err != nil {
+			h.Log.Error("ingest: enqueue logs", "err", err)
+			fail(w, http.StatusServiceUnavailable, "temporarily unavailable")
+			return
+		}
 	}
 	eventID, _ := env.Header["event_id"].(string)
 	for _, ev := range events {

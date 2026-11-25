@@ -2,11 +2,13 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api, AuditEntry, Invitation, Member, Organization, Project, ProjectSettings } from "../api";
 import { linkProps, navigate } from "../router";
 import { TimeAgo } from "../ui";
+import { TokensSection } from "./Tokens";
 
 const PLATFORMS = ["javascript", "node", "python", "go", "java", "php", "ruby", "dotnet", "rust", "react-native", "flutter", "android", "apple", "other"];
 
 export function SettingsPage({ org, tab, project }: { org: Organization; tab: string; project?: string }) {
-  const tabs = [["members", "Members"], ["projects", "Projects"], ["audit", "Audit log"]] as const;
+  const isAdmin = org.role === "owner" || org.role === "admin";
+  const tabs = [["members", "Members"], ["projects", "Projects"], ...(isAdmin ? [["tokens", "API tokens"]] as const : []), ["audit", "Audit log"]] as const;
   return (
     <>
       <div className="page-head"><h1>Settings</h1></div>
@@ -16,7 +18,7 @@ export function SettingsPage({ org, tab, project }: { org: Organization; tab: st
         ))}
       </div>
       {tab === "projects" ? (project ? <ProjectSettingsForm org={org.slug} slug={project} /> : <ProjectPicker org={org.slug} />) :
-        tab === "audit" ? <AuditLog org={org.slug} /> : <Members org={org} />}
+        tab === "audit" ? <AuditLog org={org.slug} /> : tab === "tokens" ? <TokensSection org={org.slug} /> : <Members org={org} />}
     </>
   );
 }

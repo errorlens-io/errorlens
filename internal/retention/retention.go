@@ -33,7 +33,10 @@ func Run(ctx context.Context, d *db.DB, log *slog.Logger) {
 	}
 }
 
-func partitionName(day time.Time) string { return "events_p" + day.Format("20060102") }
+func partitionName(table string, day time.Time) string { return table + "_p" + day.Format("20060102") }
+
+// Partitioned tables maintained here (partitioned by day on their time column).
+var tables = []string{"events", "logs"}
 
 // Once creates upcoming partitions, drops expired ones and deletes expired
 // rows for projects with shorter retention. Safe to run on several replicas.
@@ -45,35 +48,37 @@ func Once(ctx context.Context, d *db.DB, now time.Time) error {
 		}
 		today := now.Truncate(24 * time.Hour)
 
-		for i := 0; i <= daysAhead; i++ {
-			day := today.AddDate(0, 0, i)
-			name := partitionName(day)
-			var exists bool
-			if err := tx.QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, name).Scan(&exists); err != nil {
-				return err
-			}
-			if exists {
-				continue
-			}
-			// If rows for this day already landed in the default partition, skip
-			// it rather than fail; they are still queryable and age out below.
-			_, err := tx.Exec(ctx, `SAVEPOINT part`)
-			if err != nil {
-				return err
-			}
-			_, err = tx.Exec(ctx, fmt.Sprintf(`CREATE TABLE %s PARTITION OF events FOR VALUES FROM ('%s') TO ('%s')`,
-				name, day.Format(time.DateOnly), day.AddDate(0, 0, 1).Format(time.DateOnly)))
-			if err != nil {
-				if _, rbErr := tx.Exec(ctx, `ROLLBACK TO SAVEPOINT part`); rbErr != nil {
-					return rbErr
+		for _, table := range tables {
+			for i := 0; i <= daysAhead; i++ {
+				day := today.AddDate(0, 0, i)
+				name := partitionName(table, day)
+				var exists bool
+				if err := tx.QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, name).Scan(&exists); err != nil {
+					return err
 				}
-				continue
+				if exists {
+					continue
+				}
+				// If rows for this day already landed in the default partition, skip
+				// it rather than fail; they are still queryable and age out below.
+				_, err := tx.Exec(ctx, `SAVEPOINT part`)
+				if err != nil {
+					return err
+				}
+				_, err = tx.Exec(ctx, fmt.Sprintf(`CREATE TABLE %s PARTITION OF %s FOR VALUES FROM ('%s') TO ('%s')`,
+					name, table, day.Format(time.DateOnly), day.AddDate(0, 0, 1).Format(time.DateOnly)))
+				if err != nil {
+					if _, rbErr := tx.Exec(ctx, `ROLLBACK TO SAVEPOINT part`); rbErr != nil {
+						return rbErr
+					}
+					continue
+				}
+				if _, err := tx.Exec(ctx, `RELEASE SAVEPOINT part`); err != nil {
+					return err
+				}
 			}
-			if _, err := tx.Exec(ctx, `RELEASE SAVEPOINT part`); err != nil {
-				return err
-			}
-		}
 
+		}
 		// Drop whole partitions older than the longest retention of any project.
 		var maxDays int
 		if err := tx.QueryRow(ctx, `SELECT COALESCE(max(retention_days), 30) FROM projects`).Scan(&maxDays); err != nil {
@@ -84,7 +89,7 @@ func Once(ctx context.Context, d *db.DB, now time.Time) error {
 			SELECT c.relname FROM pg_inherits i
 			JOIN pg_class c ON c.oid = i.inhrelid
 			JOIN pg_class p ON p.oid = i.inhparent
-			WHERE p.relname = 'events' AND c.relname LIKE 'events\_p%'`)
+			WHERE p.relname = ANY($1) AND c.relname ~ '^(events|logs)_p[0-9]{8}$'`, tables)
 		if err != nil {
 			return err
 		}
@@ -93,7 +98,7 @@ func Once(ctx context.Context, d *db.DB, now time.Time) error {
 			return err
 		}
 		for _, n := range names {
-			day, err := time.Parse("20060102", strings.TrimPrefix(n, "events_p"))
+			day, err := time.Parse("20060102", n[strings.LastIndex(n, "_p")+2:])
 			if err != nil || !day.AddDate(0, 0, 1).Before(cutoff.Add(time.Nanosecond)) {
 				continue
 			}
@@ -111,6 +116,11 @@ func Once(ctx context.Context, d *db.DB, now time.Time) error {
 		if _, err := tx.Exec(ctx, `
 			DELETE FROM issues i USING projects p
 			WHERE i.project_id = p.id AND i.last_seen < $1::timestamptz - make_interval(days => p.retention_days)`, now); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			DELETE FROM logs l USING projects p
+			WHERE l.project_id = p.id AND l.timestamp < $1::timestamptz - make_interval(days => p.retention_days)`, now); err != nil {
 			return err
 		}
 		_, err = tx.Exec(ctx, `DELETE FROM issue_counts WHERE bucket < $1::timestamptz - make_interval(days => $2)`, now, maxDays)

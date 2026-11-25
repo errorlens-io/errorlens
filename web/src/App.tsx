@@ -4,6 +4,8 @@ import { IssueDetailPage } from "./pages/IssueDetail";
 import { IssuesPage } from "./pages/Issues";
 import { ProjectsPage } from "./pages/Projects";
 import { AlertsPage } from "./pages/Alerts";
+import { LogsPage } from "./pages/Logs";
+import { ReleasesPage } from "./pages/Releases";
 import { InvitePage } from "./pages/Invite";
 import { SettingsPage } from "./pages/Settings";
 import { linkProps, navigate, useLocation } from "./router";
@@ -146,6 +148,10 @@ function Shell({ session, onLogout }: { session: Session; onLogout: () => void }
     page = <IssueDetailPage key={parts[2]} org={org.slug} id={Number(parts[2])} role={org.role} />;
   } else if (section === "projects") {
     page = <ProjectsPage org={org} />;
+  } else if (section === "logs") {
+    page = <LogsPage org={org.slug} search={search} />;
+  } else if (section === "releases") {
+    page = <ReleasesPage org={org.slug} />;
   } else if (section === "alerts") {
     page = <AlertsPage org={org.slug} />;
   } else if (section === "settings") {
@@ -166,6 +172,8 @@ function Shell({ session, onLogout }: { session: Session; onLogout: () => void }
         <a className="brand-link" {...linkProps(`/${org.slug}/issues`)}><Brand /></a>
         <nav className="nav">
           <a className={section === "issues" ? "active" : ""} {...linkProps(`/${org.slug}/issues`)}>Issues</a>
+          <a className={section === "logs" ? "active" : ""} {...linkProps(`/${org.slug}/logs`)}>Logs</a>
+          <a className={section === "releases" ? "active" : ""} {...linkProps(`/${org.slug}/releases`)}>Releases</a>
           <a className={section === "projects" ? "active" : ""} {...linkProps(`/${org.slug}/projects`)}>Projects</a>
           {isAdmin && <a className={section === "alerts" ? "active" : ""} {...linkProps(`/${org.slug}/alerts`)}>Alerts</a>}
           <a className={section === "settings" ? "active" : ""} {...linkProps(`/${org.slug}/settings/members`)}>Settings</a>

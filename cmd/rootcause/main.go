@@ -20,11 +20,14 @@ import (
 	"github.com/rootcausehq/rootcause/internal/alert"
 	"github.com/rootcausehq/rootcause/internal/api"
 	"github.com/rootcausehq/rootcause/internal/config"
+	"github.com/rootcausehq/rootcause/internal/crypto"
 	"github.com/rootcausehq/rootcause/internal/db"
+	"github.com/rootcausehq/rootcause/internal/logs"
 	"github.com/rootcausehq/rootcause/internal/notify"
 	"github.com/rootcausehq/rootcause/internal/process"
 	"github.com/rootcausehq/rootcause/internal/queue"
 	"github.com/rootcausehq/rootcause/internal/retention"
+	"github.com/rootcausehq/rootcause/internal/sourcemap"
 	"github.com/rootcausehq/rootcause/internal/version"
 	"github.com/rootcausehq/rootcause/web"
 )
@@ -43,6 +46,7 @@ Commands:
   serve     Run the server (applies migrations first unless -no-migrate)
   migrate   Apply database migrations and exit
   version   Print version information
+  sourcemaps upload   Upload JavaScript source maps for a release (see --help)
 
 Configuration is read from environment variables (see README):
   ROOTCAUSE_DATABASE_URL   Postgres connection URL (required)
@@ -54,6 +58,7 @@ Configuration is read from environment variables (see README):
   ROOTCAUSE_SMTP_HOST, _PORT, _USERNAME, _PASSWORD, _FROM   Outgoing email
   ROOTCAUSE_ALLOW_PRIVATE_WEBHOOKS  Allow alert webhooks to private addresses (default false)
   ROOTCAUSE_SIGNUP_ENABLED   Let anyone create an organization (hosted mode, default false)
+  ROOTCAUSE_ENCRYPTION_KEY   Base64 32-byte key; encrypts stored event payloads (openssl rand -base64 32)
 `)
 }
 
@@ -82,6 +87,8 @@ func run(args []string) error {
 			}
 			return serve(ctx, cfg, d, log)
 		})
+	case "sourcemaps":
+		return sourcemapsCmd(args[1:])
 	case "help", "-h", "--help":
 		usage()
 		return nil
@@ -130,23 +137,40 @@ func migrate(ctx context.Context, d *db.DB, log *slog.Logger) error {
 }
 
 func serve(ctx context.Context, cfg *config.Config, d *db.DB, log *slog.Logger) error {
+	srvAPI := api.New(cfg, d, log, web.FS())
 	srv := &http.Server{
 		Addr:              cfg.ListenAddr,
-		Handler:           api.New(cfg, d, log, web.FS()).Handler(),
+		Handler:           srvAPI.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
 
+	masterKey, err := crypto.ParseMasterKey(cfg.EncryptionKey)
+	if err != nil {
+		return err
+	}
+	keyring, err := crypto.NewKeyring(d, masterKey)
+	if err != nil {
+		return err
+	}
+	if keyring != nil {
+		log.Info("event payload encryption enabled")
+	}
+	srvAPI.WithKeyring(keyring)
+
 	worker := queue.NewWorker(d.Pool, log)
+	worker.Handle(logs.JobKind, logs.Store(d))
 	alerts := &alert.Engine{
 		DB:        d,
 		Log:       log,
 		Sender:    &notify.Sender{HTTP: notify.NewHTTPClient(cfg.AllowPrivateWebhooks), SMTP: cfg.SMTP},
 		PublicURL: cfg.PublicURL,
 	}
-	worker.Handle(process.JobKind, (&process.Processor{DB: d, OnOutcome: alerts.OnOutcome}).Handle)
+	worker.Handle(process.JobKind, (&process.Processor{
+		DB: d, OnOutcome: alerts.OnOutcome, Keyring: keyring, SourceMaps: &sourcemap.Resolver{DB: d},
+	}).Handle)
 	worker.Handle(alert.EvaluateJob, alerts.Evaluate)
 	worker.Handle(alert.DeliverJob, alerts.Deliver)
 	workerDone := make(chan struct{})
@@ -175,7 +199,7 @@ func serve(ctx context.Context, cfg *config.Config, d *db.DB, log *slog.Logger) 
 	log.Info("shutting down")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	err := srv.Shutdown(shutdownCtx)
+	err = srv.Shutdown(shutdownCtx)
 	<-workerDone
 	return err
 }

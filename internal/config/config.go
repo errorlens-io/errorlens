@@ -31,6 +31,10 @@ type Config struct {
 	SignupEnabled bool
 
 	SMTP SMTP
+
+	// EncryptionKey (base64, 32 bytes) enables encryption of stored event
+	// payloads. Losing it makes encrypted events unreadable.
+	EncryptionKey string
 }
 
 // SMTP configures outgoing email (alerts, invitations). Host "" disables email.
@@ -102,6 +106,7 @@ func Load(getenv func(string) string) (*Config, error) {
 
 	cfg.AllowPrivateWebhooks = isTrue(get("ROOTCAUSE_ALLOW_PRIVATE_WEBHOOKS", "false"))
 	cfg.SignupEnabled = isTrue(get("ROOTCAUSE_SIGNUP_ENABLED", "false"))
+	cfg.EncryptionKey = get("ROOTCAUSE_ENCRYPTION_KEY", "")
 
 	cfg.SMTP = SMTP{
 		Host:     get("ROOTCAUSE_SMTP_HOST", ""),

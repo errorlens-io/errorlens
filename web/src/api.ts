@@ -64,6 +64,10 @@ export type Member = { userId: string; email: string; name: string; role: string
 export type Invitation = { email: string; role: string; createdAt: string; expiresAt: string };
 export type AuditEntry = { id: number; actorEmail: string | null; action: string; target: string; ip: string; createdAt: string };
 
+export type LogLine = { id: number; timestamp: string; project: string; severity: string; body: string; traceId: string; release: string; environment: string; attributes: Record<string, string> };
+export type Release = { version: string; project: string; firstEvent: string | null; lastEvent: string | null; createdAt: string; newIssues: number; files: number };
+export type APIToken = { id: string; name: string; prefix: string; role: string; createdAt: string; lastUsedAt: string | null };
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -138,6 +142,13 @@ export const api = {
   setMemberRole: (org: string, userId: string, role: string) => request<void>("PUT", `/organizations/${org}/members/${userId}`, { role }),
   removeMember: (org: string, userId: string) => request<void>("DELETE", `/organizations/${org}/members/${userId}`),
   auditLog: (org: string) => request<AuditEntry[]>("GET", `/organizations/${org}/audit-log`),
+
+  logs: (org: string, p: { project?: string; severity?: string; query?: string; before?: string; after?: string; trace?: string }) =>
+    request<LogLine[]>("GET", `/organizations/${org}/logs${qs(p)}`),
+  releases: (org: string, project?: string) => request<Release[]>("GET", `/organizations/${org}/releases${qs({ project })}`),
+  tokens: (org: string) => request<APIToken[]>("GET", `/organizations/${org}/tokens`),
+  createToken: (org: string, name: string, role: string) => request<{ id: string; token: string }>("POST", `/organizations/${org}/tokens`, { name, role }),
+  deleteToken: (org: string, id: string) => request<void>("DELETE", `/organizations/${org}/tokens/${id}`),
 
   inviteInfo: (token: string) =>
     request<{ organization: string; email: string; role: string; accountExists: boolean }>("GET", `/invitations/${token}`),

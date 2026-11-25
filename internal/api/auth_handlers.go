@@ -29,6 +29,7 @@ type ctxKey int
 const (
 	userKey ctxKey = iota
 	orgKey
+	tokenKey
 )
 
 func userFrom(ctx context.Context) *User {
@@ -39,6 +40,10 @@ func userFrom(ctx context.Context) *User {
 // loadSession attaches the user for a valid session cookie, if any.
 func (s *Server) loadSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if a := r.Header.Get("Authorization"); strings.HasPrefix(a, "Bearer "+tokenPrefix) {
+			s.tokenSession(w, r, next, strings.TrimPrefix(a, "Bearer "))
+			return
+		}
 		c, err := r.Cookie(sessionCookie)
 		if err != nil || c.Value == "" {
 			next.ServeHTTP(w, r)
@@ -311,6 +316,10 @@ func (s *Server) clearCookie(w http.ResponseWriter) {
 }
 
 func (s *Server) me(w http.ResponseWriter, r *http.Request) {
+	if r.Context().Value(tokenKey) != nil {
+		writeError(w, http.StatusForbidden, "not available with API tokens")
+		return
+	}
 	u := userFrom(r.Context())
 	var orgs []Organization
 	err := s.db.InScope(r.Context(), db.Scope{UserID: u.ID}, func(tx pgx.Tx) error {
@@ -341,4 +350,36 @@ func normalizeEmail(s string) (string, bool) {
 		return s, false
 	}
 	return s, true
+}
+
+// tokenSession authenticates an API token. The request acts as the token's
+// creator (for audit records) with the token's own role, limited to its org.
+func (s *Server) tokenSession(w http.ResponseWriter, r *http.Request, next http.Handler, token string) {
+	var t tokenAuth
+	var u User
+	var creator *uuid.UUID
+	err := s.db.System(r.Context(), func(tx pgx.Tx) error {
+		if err := tx.QueryRow(r.Context(), `UPDATE api_tokens SET last_used_at = now() WHERE token_hash = $1
+			RETURNING org_id, role, created_by`, auth.HashToken(token)).Scan(&t.OrgID, &t.Role, &creator); err != nil {
+			return err
+		}
+		if creator != nil {
+			_ = tx.QueryRow(r.Context(), `SELECT id, email, name FROM users WHERE id = $1`, *creator).Scan(&u.ID, &u.Email, &u.Name)
+		}
+		return nil
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		writeError(w, http.StatusUnauthorized, "invalid API token")
+		return
+	}
+	if err != nil {
+		s.internalError(w, r, err)
+		return
+	}
+	if u.Email == "" {
+		u.Email = "api-token"
+	}
+	ctx := context.WithValue(r.Context(), userKey, &u)
+	ctx = context.WithValue(ctx, tokenKey, &t)
+	next.ServeHTTP(w, r.WithContext(ctx))
 }

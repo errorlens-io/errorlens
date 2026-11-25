@@ -10,8 +10,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/rootcausehq/rootcause/internal/crypto"
 	"github.com/rootcausehq/rootcause/internal/db"
 	"github.com/rootcausehq/rootcause/internal/queue"
+	"github.com/rootcausehq/rootcause/internal/sourcemap"
 )
 
 // JobKind is the queue job kind for event processing.
@@ -38,6 +40,10 @@ type Outcome struct {
 // Processor stores events and maintains issues.
 type Processor struct {
 	DB *db.DB
+	// Keyring, when set, encrypts stored event payloads.
+	Keyring *crypto.Keyring
+	// SourceMaps, when set, maps minified JavaScript frames to original sources.
+	SourceMaps *sourcemap.Resolver
 	// OnOutcome is called after an event commits (e.g. to trigger alerts).
 	OnOutcome func(ctx context.Context, job *Job, ev *Event, out Outcome)
 }
@@ -54,6 +60,9 @@ func (p *Processor) Handle(ctx context.Context, qj queue.Job) error {
 
 // Process normalizes, groups and stores one event.
 func (p *Processor) Process(ctx context.Context, job *Job) (Outcome, error) {
+	if p.SourceMaps != nil {
+		p.SourceMaps.Apply(ctx, job.OrgID, job.ProjectID, job.Event)
+	}
 	ev := Normalize(job.Event, job.ReceivedAt)
 	hash, _ := Fingerprint(ev)
 	out := Outcome{EventID: ev.ID}
@@ -114,14 +123,31 @@ func (p *Processor) Process(ctx context.Context, job *Job) (Outcome, error) {
 		if err != nil {
 			return err
 		}
+		var sealed []byte
+		if p.Keyring != nil {
+			if sealed, err = p.Keyring.Seal(ctx, job.OrgID, payload, ev.ID[:]); err != nil {
+				return err
+			}
+			payload = []byte("{}")
+		}
 		tags, _ := json.Marshal(ev.Tags)
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO events (id, org_id, project_id, issue_id, received_at, timestamp, level, title,
-			                    release, environment, platform, tags, scrubbed, payload)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+			                    release, environment, platform, tags, scrubbed, payload, payload_ct)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
 			ev.ID, job.OrgID, job.ProjectID, out.IssueID, job.ReceivedAt, ev.Timestamp, ev.Level, ev.Title,
-			ev.Release, ev.Environment, ev.Platform, tags, job.Scrubbed, payload); err != nil {
+			ev.Release, ev.Environment, ev.Platform, tags, job.Scrubbed, payload, sealed); err != nil {
 			return err
+		}
+		if ev.Release != "" {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO releases (org_id, project_id, version, first_event, last_event) VALUES ($1, $2, $3, $4, $4)
+				ON CONFLICT (project_id, version) DO UPDATE SET
+					first_event = LEAST(COALESCE(releases.first_event, EXCLUDED.first_event), EXCLUDED.first_event),
+					last_event  = GREATEST(COALESCE(releases.last_event, EXCLUDED.last_event), EXCLUDED.last_event)`,
+				job.OrgID, job.ProjectID, ev.Release, job.ReceivedAt); err != nil {
+				return err
+			}
 		}
 		_, err = tx.Exec(ctx, `
 			INSERT INTO issue_counts (org_id, project_id, issue_id, bucket, count)

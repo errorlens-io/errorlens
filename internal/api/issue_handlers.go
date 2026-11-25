@@ -373,14 +373,25 @@ func (s *Server) getEvent(w http.ResponseWriter, r *http.Request) {
 		Next    *string         `json:"next"` // newer event id
 	}
 	ctx := r.Context()
+	var sealed []byte
 	err := s.db.InScope(ctx, scope(r), func(tx pgx.Tx) error {
 		var eid uuid.UUID
 		if err := tx.QueryRow(ctx, `
-			SELECT id, timestamp, received_at, level, title, release, environment, tags, scrubbed, payload
+			SELECT id, timestamp, received_at, level, title, release, environment, tags, scrubbed, payload, payload_ct
 			FROM events WHERE issue_id = $1 `+where, args...,
 		).Scan(&eid, &resp.Timestamp, &resp.ReceivedAt, &resp.Level, &resp.Title, &resp.Release,
-			&resp.Environment, &resp.Tags, &resp.Scrubbed, &resp.Payload); err != nil {
+			&resp.Environment, &resp.Tags, &resp.Scrubbed, &resp.Payload, &sealed); err != nil {
 			return err
+		}
+		if sealed != nil {
+			if s.keyring == nil {
+				return errors.New("event is encrypted but ROOTCAUSE_ENCRYPTION_KEY is not set")
+			}
+			pt, err := s.keyring.Open(ctx, orgFrom(ctx).ID, sealed, eid[:])
+			if err != nil {
+				return err
+			}
+			resp.Payload = pt
 		}
 		resp.ID = strings.ReplaceAll(eid.String(), "-", "")
 		neighbor := func(op, dir string) (*string, error) {

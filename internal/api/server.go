@@ -18,6 +18,7 @@ import (
 
 	"github.com/rootcausehq/rootcause/internal/auth"
 	"github.com/rootcausehq/rootcause/internal/config"
+	"github.com/rootcausehq/rootcause/internal/crypto"
 	"github.com/rootcausehq/rootcause/internal/db"
 	"github.com/rootcausehq/rootcause/internal/ingest"
 	"github.com/rootcausehq/rootcause/internal/notify"
@@ -36,7 +37,14 @@ type Server struct {
 	loginByEmail *auth.Limiter
 	sender       *notify.Sender
 	ingest       *ingest.Handler
+	keyring      *crypto.Keyring
 }
+
+// WithKeyring enables reading encrypted event payloads.
+func (s *Server) WithKeyring(k *crypto.Keyring) *Server { s.keyring = k; return s }
+
+// Ingest exposes the ingest handler so other features can register item types.
+func (s *Server) Ingest() *ingest.Handler { return s.ingest }
 
 // New builds a Server. ui is the static web bundle (nil disables the UI).
 func New(cfg *config.Config, d *db.DB, log *slog.Logger, ui fs.FS) *Server {
@@ -69,7 +77,7 @@ func (s *Server) Handler() http.Handler {
 	s.ingest.Routes(r)
 
 	r.Route("/api/0", func(r chi.Router) {
-		r.Use(limitBody(1 << 20))
+		r.Use(limitBody(1<<20, 64<<20))
 		r.Use(s.sameOrigin)
 		r.Use(s.loadSession)
 
@@ -119,6 +127,14 @@ func (s *Server) Handler() http.Handler {
 				r.With(admin).Delete("/alerts/rules/{ruleID}", s.deleteRule)
 				r.With(admin).Get("/alerts/history", s.listAlertHistory)
 
+				r.Get("/logs", s.listLogs)
+				r.Get("/releases", s.listReleases)
+				r.Get("/projects/{project}/releases/{release}/files", s.listArtifacts)
+				r.With(requireRole("owner", "admin", "member")).Post("/projects/{project}/releases/{release}/files", s.uploadArtifact)
+				r.With(admin).Get("/tokens", s.listTokens)
+				r.With(admin).Post("/tokens", s.createToken)
+				r.With(admin).Delete("/tokens/{tokenID}", s.deleteToken)
+
 				r.Get("/members", s.listMembers)
 				r.With(admin).Post("/members", s.invite)
 				r.With(admin).Delete("/invitations/{email}", s.revokeInvite)
@@ -160,10 +176,15 @@ func securityHeaders(next http.Handler) http.Handler {
 	})
 }
 
-func limitBody(n int64) func(http.Handler) http.Handler {
+// limitBody caps request bodies; release file uploads get the larger limit.
+func limitBody(n, upload int64) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			r.Body = http.MaxBytesReader(w, r.Body, n)
+			limit := n
+			if strings.HasSuffix(r.URL.Path, "/files") && r.Method == http.MethodPost {
+				limit = upload
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, limit)
 			next.ServeHTTP(w, r)
 		})
 	}
@@ -175,6 +196,10 @@ func limitBody(n int64) func(http.Handler) http.Handler {
 func (s *Server) sameOrigin(next http.Handler) http.Handler {
 	want := s.cfg.PublicURL.Scheme + "://" + s.cfg.PublicURL.Host
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.Header.Get("Authorization"), "Bearer "+tokenPrefix) {
+			next.ServeHTTP(w, r) // API tokens are not ambient credentials: no CSRF risk
+			return
+		}
 		switch r.Method {
 		case http.MethodGet, http.MethodHead, http.MethodOptions:
 		default:

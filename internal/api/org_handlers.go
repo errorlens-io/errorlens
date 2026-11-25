@@ -52,6 +52,24 @@ func (s *Server) loadOrg(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u := userFrom(r.Context())
 		var o Organization
+		if t, ok := r.Context().Value(tokenKey).(*tokenAuth); ok {
+			// API token: limited to its own organization, with the token's role.
+			err := s.db.InScope(r.Context(), db.Scope{OrgID: t.OrgID}, func(tx pgx.Tx) error {
+				return tx.QueryRow(r.Context(), `SELECT id, name, slug FROM organizations WHERE id = $1 AND slug = $2`,
+					t.OrgID, chi.URLParam(r, "org")).Scan(&o.ID, &o.Name, &o.Slug)
+			})
+			if errors.Is(err, pgx.ErrNoRows) {
+				writeError(w, http.StatusNotFound, "organization not found")
+				return
+			}
+			if err != nil {
+				s.internalError(w, r, err)
+				return
+			}
+			o.Role = t.Role
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), orgKey, &o)))
+			return
+		}
 		err := s.db.InScope(r.Context(), db.Scope{UserID: u.ID}, func(tx pgx.Tx) error {
 			return tx.QueryRow(r.Context(), `
 				SELECT o.id, o.name, o.slug, m.role
