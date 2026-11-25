@@ -13,9 +13,12 @@
 set -euo pipefail
 HOST=${1:?usage: deploy.sh <ssh-host> [--local]}
 MODE=${2:-}
-EDGE_CADDY=${EDGE_CADDY:?set EDGE_CADDY (the edge Caddy container) or put it in deploy/server/.deploy.env}
-EDGE_CONFIG=${EDGE_CONFIG:?set EDGE_CONFIG (host dir the edge Caddy imports *.caddy from)}
 DIR=$(cd "$(dirname "$0")" && pwd)
+# Site-specific settings, kept out of git: deploy/server/.deploy.env
+[ -f "$DIR/.deploy.env" ] && . "$DIR/.deploy.env"
+EDGE_CADDY=${EDGE_CADDY:?set EDGE_CADDY (the edge Caddy container) in deploy/server/.deploy.env}
+EDGE_CONFIG=${EDGE_CONFIG:?set EDGE_CONFIG (host dir the edge Caddy imports *.caddy from)}
+EDGE_NETWORK=${EDGE_NETWORK:?set EDGE_NETWORK (the docker network the edge Caddy is on)}
 ROOT=$(cd "$DIR/../.." && pwd)
 
 IMAGE=${ERRORLENS_IMAGE:-errorlens/errorlens:latest}
@@ -32,7 +35,7 @@ fi
 ssh "$HOST" 'mkdir -p /srv/errorlens && chmod 700 /srv/errorlens'
 scp -q "$DIR/docker-compose.yml" "$HOST:/srv/errorlens/docker-compose.yml"
 scp -q "$DIR/errorlens.caddy" "$HOST:/srv/errorlens/errorlens.caddy"
-ssh "$HOST" IMAGE="$IMAGE" PULL="$PULL" EDGE_CADDY="$EDGE_CADDY" EDGE_CONFIG="$EDGE_CONFIG" 'bash -s' <<'REMOTE'
+ssh "$HOST" EDGE_NETWORK="$EDGE_NETWORK" IMAGE="$IMAGE" PULL="$PULL" EDGE_CADDY="$EDGE_CADDY" EDGE_CONFIG="$EDGE_CONFIG" 'bash -s' <<'REMOTE'
 set -euo pipefail
 cd /srv/errorlens
 if [ ! -f .env ]; then
@@ -45,8 +48,9 @@ if [ ! -f .env ]; then
   echo "created /srv/errorlens/.env (back up ERRORLENS_ENCRYPTION_KEY)"
 fi
 # Record which image runs, so a plain `docker compose up -d` keeps it.
-grep -v '^ERRORLENS_IMAGE=' .env > .env.tmp || true
+grep -vE '^(ERRORLENS_IMAGE|EDGE_NETWORK)=' .env > .env.tmp || true
 echo "ERRORLENS_IMAGE=$IMAGE" >> .env.tmp
+echo "EDGE_NETWORK=$EDGE_NETWORK" >> .env.tmp
 mv .env.tmp .env && chmod 600 .env
 docker compose up -d --pull "$PULL"
 for i in $(seq 1 30); do
