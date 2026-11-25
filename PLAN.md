@@ -3,7 +3,7 @@
 > **RootCause** — open-source, self-hosted error & log tracking.
 > *Your errors, your servers, your eyes only.*
 
-Status: draft v0.1 · 2026-11-25
+Status: v0.1 · 2026-11-25 — **Phases 0–4 implemented** (see "Implementation status" at the end)
 
 ---
 
@@ -317,3 +317,23 @@ rootcause/
 | Postgres limits at high volume | Partitioning, batching inserts, COPY; ClickHouse adapter for large users |
 | Security bug undermines the privacy brand | Scrub-before-disk invariant tested, RLS, fuzzing the envelope parser, external audit before Cloud launch, bug bounty |
 | Domain not yet purchased | Buy rootcause.sh before any public announcement |
+
+
+---
+
+## 15. Implementation status (2026-11-25)
+
+| Phase | Status | Notes |
+|---|---|---|
+| 0 — Foundation | ✅ Done | Go + Postgres, migrations, RLS, job queue, auth, UI shell, Docker, CI |
+| 1 — Errors MVP | ✅ Done | Ingest (envelope/store), scrubbing, grouping, regressions, issues UI, alerts (email/Slack/Discord/webhook), members & invitations, privacy settings, audit log, own SDKs (`rootcausehq`, `@rootcausehq/node`, `@rootcausehq/browser`) |
+| 2 — Logs & workflow | ✅ Done | SDK + OTLP logs, releases, JS source maps + upload CLI, API tokens, payload encryption at rest |
+| 3 — Hosted | ✅ Done (code) | Sign-up, email verification, password reset, quotas & usage, Stripe hooks, admin console, TOTP 2FA, OIDC SSO, web/worker roles, Helm chart |
+| 4 — Beyond | ✅ Partly | Transactions/spans (SDK + OTLP), performance page, trace view, cron + uptime monitors. Not done: ClickHouse adapter, ProGuard/dSYM symbolication, session replay, profiling |
+
+### Not done / needs the owner
+- Buy **rootcause.sh**; create GitHub org `rootcausehq`, Docker Hub `rootcausehq`, npm scope `@rootcausehq`, PyPI `rootcausehq`; then publish the SDKs and image.
+- Stripe account, price IDs and webhook secret for the hosted tier (code is ready, untested against live Stripe).
+- External security review before offering the hosted service.
+- Load testing against the performance targets in §10.
+- Session counts / crash-free rate, attachments, SAML (OIDC covers most identity providers).
