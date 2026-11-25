@@ -300,7 +300,7 @@ func (s *Server) acceptInvite(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		userID = uuid.New()
-		if _, err := s.db.Pool.Exec(ctx, `INSERT INTO users (id, email, name, password_hash) VALUES ($1, $2, $3, $4)`,
+		if _, err := s.db.Pool.Exec(ctx, `INSERT INTO users (id, email, name, password_hash, email_verified_at) VALUES ($1, $2, $3, $4, now())`,
 			userID, in.email, strings.TrimSpace(req.Name), hash); err != nil {
 			s.finish(w, r, err, nil)
 			return

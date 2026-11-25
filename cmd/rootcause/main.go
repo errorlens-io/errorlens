@@ -50,6 +50,7 @@ Commands:
   migrate   Apply database migrations and exit
   version   Print version information
   sourcemaps upload   Upload JavaScript source maps for a release (see --help)
+  demo --dsn DSN      Send realistic sample data to a project
 
 Configuration is read from environment variables (see README):
   ROOTCAUSE_DATABASE_URL   Postgres connection URL (required)
@@ -99,6 +100,8 @@ func run(args []string) error {
 		})
 	case "sourcemaps":
 		return sourcemapsCmd(args[1:])
+	case "demo":
+		return demoCmd(args[1:])
 	case "help", "-h", "--help":
 		printUsage()
 		return nil

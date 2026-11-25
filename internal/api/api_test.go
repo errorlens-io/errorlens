@@ -210,3 +210,13 @@ func TestUIAndHealth(t *testing.T) {
 		t.Errorf("unknown api route = %d", resp.StatusCode)
 	}
 }
+
+func TestSetupAccountIsVerified(t *testing.T) {
+	_, newClient := newEnv(t)
+	c := newClient()
+	c.do("POST", "/api/0/setup", map[string]string{"email": "v@example.com", "password": pw, "organizationName": "V"})
+	_, me, _ := c.do("GET", "/api/0/auth/me", nil)
+	if me["user"].(map[string]any)["emailVerified"] != true {
+		t.Fatalf("setup user not verified: %v", me)
+	}
+}

@@ -160,7 +160,7 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 			return errAlreadySetUp
 		}
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO users (id, email, name, password_hash, is_superuser) VALUES ($1, $2, $3, $4, true)`,
+			`INSERT INTO users (id, email, name, password_hash, is_superuser, email_verified_at) VALUES ($1, $2, $3, $4, true, now())`,
 			userID, email, req.Name, hash); err != nil {
 			return err
 		}

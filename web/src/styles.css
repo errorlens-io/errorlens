@@ -307,3 +307,17 @@ a.seg.on { background: var(--accent); color: var(--accent-text); }
 .dot.st-in_progress { background: #2563eb; }
 .code-block-plain { background: var(--code-bg); padding: 10px; border-radius: 6px; overflow-x: auto; margin: 0; }
 @media (max-width: 600px) { .wf-row { grid-template-columns: 1fr 60px; } .wf-track { display: none; } }
+@media (max-width: 1100px) {
+  .topbar .user-email { display: none; }
+  .topbar .nav { overflow-x: auto; scrollbar-width: none; }
+  .topbar .nav::-webkit-scrollbar { display: none; }
+  .topbar .nav a { white-space: nowrap; }
+}
+@media (max-width: 900px) {
+  .topbar .brand span { display: none; }
+  .topbar { gap: 6px; }
+  .topbar .nav { min-width: 0; flex: 1 1 auto; }
+  .topbar .spacer { display: none; }
+  .topbar button { white-space: nowrap; }
+}
+.kv td.num-col, .kv th.num-col, .kv td.nowrap { white-space: nowrap; }

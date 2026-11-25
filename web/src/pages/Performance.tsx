@@ -3,6 +3,7 @@ import { api, Project, TraceView, TxRow, TxSummary } from "../api";
 import { linkProps, setQuery } from "../router";
 import { Empty, formatCount, TimeAgo } from "../ui";
 
+const offset = (d: number) => (d < 0 ? `−${ms(-d)}` : `+${ms(d)}`);
 export const ms = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(2)}s` : `${n.toFixed(n < 10 ? 1 : 0)}ms`);
 const PERIODS = [["1h", "1 hour"], ["24h", "24 hours"], ["7d", "7 days"], ["30d", "30 days"]] as const;
 
@@ -51,7 +52,7 @@ export function PerformancePage({ org, search }: { org: string; search: string }
                 <tr key={r.project + r.name}>
                   <td><a className="link mono" {...linkProps(`/${org}/performance?name=${encodeURIComponent(r.name)}&project=${r.project}${period !== "24h" ? `&period=${period}` : ""}`)}>{r.name}</a> <span className="muted small">{r.op}</span></td>
                   <td>{r.project}</td>
-                  <td className="num-col">{formatCount(r.count)} <span className="muted small">({r.perMinute.toFixed(1)}/min)</span></td>
+                  <td className="num-col">{formatCount(r.count)} <span className="muted small">({r.perMinute >= 1 ? `${r.perMinute.toFixed(1)}/min` : `${(r.perMinute * 60).toFixed(1)}/hr`})</span></td>
                   <td className="num-col">{ms(r.p50)}</td>
                   <td className={`num-col ${r.p95 > 1000 ? "warn-text" : ""}`}>{ms(r.p95)}</td>
                   <td className={`num-col ${r.failureRate > 0.05 ? "warn-text" : ""}`}>{(r.failureRate * 100).toFixed(1)}%</td>
@@ -103,7 +104,8 @@ export function TracePage({ org, traceId }: { org: string; traceId: string }) {
   if (!t) return <p className="muted">Loading…</p>;
 
   const starts = t.transactions.map((x) => new Date(x.start).getTime());
-  const t0 = Math.min(...starts, ...t.errors.map((e) => new Date(e.timestamp).getTime()));
+  // Time the trace from its transactions; errors/logs are shown relative to that.
+  const t0 = starts.length ? Math.min(...starts) : Math.min(...t.errors.map((e) => new Date(e.timestamp).getTime()), Date.now());
   const end = Math.max(...t.transactions.map((x) => new Date(x.start).getTime() + x.durationMs), t0 + 1);
   const total = end - t0;
   const pos = (startMs: number, dur: number) => ({ left: `${(startMs / total) * 100}%`, width: `${Math.max(0.3, (dur / total) * 100)}%` });
@@ -120,7 +122,7 @@ export function TracePage({ org, traceId }: { org: string; traceId: string }) {
               <li key={e.eventId} className="row-item">
                 <span className={`level level-${e.level}`} />
                 <a className="link" {...linkProps(`/${org}/issues/${e.issueId}`)}>{e.title}</a>
-                <span className="muted small">+{ms(new Date(e.timestamp).getTime() - t0)}</span>
+                <span className="muted small">{offset(new Date(e.timestamp).getTime() - t0)}</span>
               </li>
             ))}
           </ul>
@@ -160,7 +162,7 @@ export function TracePage({ org, traceId }: { org: string; traceId: string }) {
             <tbody>
               {t.logs.map((l) => (
                 <tr key={l.id} className="log-row">
-                  <td className="muted nowrap">+{ms(new Date(l.timestamp).getTime() - t0)}</td>
+                  <td className="muted nowrap">{offset(new Date(l.timestamp).getTime() - t0)}</td>
                   <td><span className={`sev sev-${l.severity}`}>{l.severity}</span></td>
                   <td className="mono log-body">{l.body}</td>
                 </tr>
