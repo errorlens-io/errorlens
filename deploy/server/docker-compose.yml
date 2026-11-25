@@ -30,7 +30,7 @@ services:
     logging: *logging
 
   errorlens:
-    image: ${ERRORLENS_IMAGE:-errorlensio/errorlens:latest}
+    image: ${ERRORLENS_IMAGE:-errorlens/errorlens:latest}
     container_name: errorlens
     restart: unless-stopped
     depends_on:

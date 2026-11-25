@@ -34,7 +34,7 @@ run: build ## Run locally against the dev database
 	ERRORLENS_DATABASE_URL="$(TEST_DB)" ./bin/errorlens serve
 
 docker:
-	docker build --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) -t errorlensio/errorlens:$(VERSION) -f deploy/Dockerfile .
+	docker build --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) -t errorlens/errorlens:$(VERSION) -f deploy/Dockerfile .
 
 clean:
 	rm -rf bin web/dist/assets web/dist/index.html web/dist/favicon.svg

@@ -18,7 +18,7 @@ EDGE_CONFIG=${EDGE_CONFIG:?set EDGE_CONFIG (host dir the edge Caddy imports *.ca
 DIR=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$DIR/../.." && pwd)
 
-IMAGE=${ERRORLENS_IMAGE:-errorlensio/errorlens:latest}
+IMAGE=${ERRORLENS_IMAGE:-errorlens/errorlens:latest}
 PULL=always
 if [ "$MODE" = "--local" ]; then
   REV=$(git -C "$ROOT" rev-parse --short HEAD)

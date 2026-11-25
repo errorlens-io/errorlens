@@ -1,5 +1,5 @@
 image:
-  repository: errorlensio/errorlens
+  repository: errorlens/errorlens
   tag: ""            # defaults to the chart appVersion
   pullPolicy: IfNotPresent
 

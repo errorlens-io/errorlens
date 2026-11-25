@@ -20,7 +20,7 @@ services:
       retries: 10
 
   errorlens:
-    image: errorlensio/errorlens:${ERRORLENS_VERSION:-latest}
+    image: errorlens/errorlens:${ERRORLENS_VERSION:-latest}
     build:
       context: ..
       dockerfile: deploy/Dockerfile
