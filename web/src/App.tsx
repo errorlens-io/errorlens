@@ -11,6 +11,8 @@ import { SettingsPage } from "./pages/Settings";
 import { LoginPage, ResetPasswordPage, SignupPage, VerifyEmailPage } from "./pages/Auth";
 import { AccountPage } from "./pages/Account";
 import { AdminPage } from "./pages/Admin";
+import { PerformancePage, TracePage } from "./pages/Performance";
+import { MonitorDetailPage, MonitorsPage } from "./pages/Monitors";
 import { linkProps, navigate, useLocation } from "./router";
 
 type Session = { user: User; organizations: Organization[]; signupEnabled: boolean };
@@ -139,6 +141,12 @@ function Shell({ session, onLogout }: { session: Session; onLogout: () => void }
     page = <AccountPage user={session.user} canCreateOrg={session.user.isSuperuser || session.signupEnabled} onChanged={onLogout} />;
   } else if (section === "admin" && session.user.isSuperuser) {
     page = <AdminPage />;
+  } else if (section === "performance") {
+    page = <PerformancePage org={org.slug} search={search} />;
+  } else if (section === "traces" && parts[2]) {
+    page = <TracePage org={org.slug} traceId={parts[2]} />;
+  } else if (section === "monitors") {
+    page = parts[2] ? <MonitorDetailPage org={org.slug} id={parts[2]} role={org.role} /> : <MonitorsPage org={org.slug} role={org.role} />;
   } else if (section === "logs") {
     page = <LogsPage org={org.slug} search={search} />;
   } else if (section === "releases") {
@@ -163,7 +171,9 @@ function Shell({ session, onLogout }: { session: Session; onLogout: () => void }
         <a className="brand-link" {...linkProps(`/${org.slug}/issues`)}><Brand /></a>
         <nav className="nav">
           <a className={section === "issues" ? "active" : ""} {...linkProps(`/${org.slug}/issues`)}>Issues</a>
+          <a className={section === "performance" || section === "traces" ? "active" : ""} {...linkProps(`/${org.slug}/performance`)}>Performance</a>
           <a className={section === "logs" ? "active" : ""} {...linkProps(`/${org.slug}/logs`)}>Logs</a>
+          <a className={section === "monitors" ? "active" : ""} {...linkProps(`/${org.slug}/monitors`)}>Monitors</a>
           <a className={section === "releases" ? "active" : ""} {...linkProps(`/${org.slug}/releases`)}>Releases</a>
           <a className={section === "projects" ? "active" : ""} {...linkProps(`/${org.slug}/projects`)}>Projects</a>
           {isAdmin && <a className={section === "alerts" ? "active" : ""} {...linkProps(`/${org.slug}/alerts`)}>Alerts</a>}

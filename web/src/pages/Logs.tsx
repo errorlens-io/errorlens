@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { api, LogLine, Project } from "../api";
-import { setQuery } from "../router";
+import { linkProps, setQuery } from "../router";
 
 const SEVERITIES = ["trace", "debug", "info", "warn", "error", "fatal"];
 
@@ -96,7 +96,7 @@ export function LogsPage({ org, search }: { org: string; search: string }) {
                           <tbody>
                             {l.release && <tr><th>release</th><td className="mono">{l.release}</td></tr>}
                             {l.environment && <tr><th>environment</th><td className="mono">{l.environment}</td></tr>}
-                            {l.traceId && <tr><th>trace</th><td className="mono"><button className="ghost small-btn" onClick={() => setQuery({ trace: l.traceId })}>{l.traceId}</button></td></tr>}
+                            {l.traceId && <tr><th>trace</th><td className="mono"><a className="link" {...linkProps(`/${org}/traces/${l.traceId}`)}>{l.traceId}</a> <button className="ghost small-btn" onClick={() => setQuery({ trace: l.traceId })}>Filter logs</button></td></tr>}
                             {Object.entries(l.attributes).map(([k, v]) => <tr key={k}><th className="mono">{k}</th><td className="mono">{v}</td></tr>)}
                           </tbody>
                         </table>

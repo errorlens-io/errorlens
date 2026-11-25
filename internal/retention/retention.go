@@ -36,7 +36,7 @@ func Run(ctx context.Context, d *db.DB, log *slog.Logger) {
 func partitionName(table string, day time.Time) string { return table + "_p" + day.Format("20060102") }
 
 // Partitioned tables maintained here (partitioned by day on their time column).
-var tables = []string{"events", "logs"}
+var tables = []string{"events", "logs", "transactions"}
 
 // Once creates upcoming partitions, drops expired ones and deletes expired
 // rows for projects with shorter retention. Safe to run on several replicas.
@@ -89,7 +89,7 @@ func Once(ctx context.Context, d *db.DB, now time.Time) error {
 			SELECT c.relname FROM pg_inherits i
 			JOIN pg_class c ON c.oid = i.inhrelid
 			JOIN pg_class p ON p.oid = i.inhparent
-			WHERE p.relname = ANY($1) AND c.relname ~ '^(events|logs)_p[0-9]{8}$'`, tables)
+			WHERE p.relname = ANY($1) AND c.relname ~ '^(events|logs|transactions)_p[0-9]{8}$'`, tables)
 		if err != nil {
 			return err
 		}
@@ -121,6 +121,14 @@ func Once(ctx context.Context, d *db.DB, now time.Time) error {
 		if _, err := tx.Exec(ctx, `
 			DELETE FROM logs l USING projects p
 			WHERE l.project_id = p.id AND l.timestamp < $1::timestamptz - make_interval(days => p.retention_days)`, now); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			DELETE FROM transactions t USING projects p
+			WHERE t.project_id = p.id AND t.start_ts < $1::timestamptz - make_interval(days => p.retention_days)`, now); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM monitor_checkins WHERE started_at < $1::timestamptz - interval '90 days'`, now); err != nil {
 			return err
 		}
 		_, err = tx.Exec(ctx, `DELETE FROM issue_counts WHERE bucket < $1::timestamptz - make_interval(days => $2)`, now, maxDays)

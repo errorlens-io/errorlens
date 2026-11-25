@@ -208,7 +208,7 @@ func serve(ctx context.Context, cfg *config.Config, d *db.DB, log *slog.Logger, 
 	meter := usage.NewMeter(d, log)
 	srvAPI := api.New(cfg, d, log, web.FS()).WithKeyring(keyring).WithBilling(stripe).WithOIDC(oidcCfg)
 	srvAPI.Ingest().Meter = meter
-	registerExtraIngest(srvAPI, d, log)
+	registerExtraIngest(srvAPI, d, log, cfg)
 	bg(meter.Run)
 
 	srv := &http.Server{

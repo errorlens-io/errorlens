@@ -27,6 +27,8 @@ import (
 	"github.com/rootcausehq/rootcause/internal/auth"
 	"github.com/rootcausehq/rootcause/internal/db"
 	"github.com/rootcausehq/rootcause/internal/logs"
+	"github.com/rootcausehq/rootcause/internal/monitor"
+	"github.com/rootcausehq/rootcause/internal/perf"
 	"github.com/rootcausehq/rootcause/internal/process"
 	"github.com/rootcausehq/rootcause/internal/queue"
 	"github.com/rootcausehq/rootcause/internal/scrub"
@@ -49,6 +51,9 @@ type Handler struct {
 
 	mu    sync.Mutex
 	cache map[string]cachedKey // public key -> project
+
+	// Monitors, when set, receives cron check-ins.
+	Monitors *monitor.Service
 
 	// Meter, when set, enforces monthly quotas and records usage.
 	Meter *usage.Meter
@@ -93,6 +98,12 @@ func (h *Handler) Routes(r chi.Router) {
 		// DSN public key: "Authorization: Bearer <key>" or "x-rootcause-key: <key>".
 		r.Options("/v1/logs", noContent)
 		r.Post("/v1/logs", h.otlpLogs)
+		r.Options("/v1/traces", noContent)
+		r.Post("/v1/traces", h.otlpTraces)
+		// Simple cron check-ins for shell scripts:
+		//   curl "https://host/api/1/monitors/nightly-backup/checkin?key=<dsn key>&status=ok"
+		r.Get("/api/{projectID}/monitors/{slug}/checkin", h.checkin)
+		r.Post("/api/{projectID}/monitors/{slug}/checkin", h.checkin)
 	})
 }
 
@@ -151,6 +162,7 @@ func (h *Handler) envelope(w http.ResponseWriter, r *http.Request) {
 
 	var events []map[string]any
 	var logRecords []logs.Record
+	var transactions []perf.Transaction
 	for _, it := range env.Items {
 		switch it.Type {
 		case "event":
@@ -164,6 +176,23 @@ func (h *Handler) envelope(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			events = append(events, ev)
+		case "transaction":
+			var ev map[string]any
+			if len(it.Payload) > 4*maxEventSize || json.Unmarshal(it.Payload, &ev) != nil {
+				continue
+			}
+			ev = scrub.New(key.Scrub).Event(ev)
+			if t, err := perf.FromSDKEvent(ev); err == nil {
+				perf.Scrub(t, scrub.New(key.Scrub))
+				transactions = append(transactions, *t)
+			}
+		case "check_in":
+			var c monitor.CheckIn
+			if h.Monitors != nil && json.Unmarshal(it.Payload, &c) == nil {
+				if err := h.Monitors.RecordCheckIn(r.Context(), key.OrgID, key.ProjectID, c); err != nil {
+					h.Log.Debug("ingest: check-in rejected", "err", err)
+				}
+			}
 		case "log":
 			recs, err := logs.ParseEnvelopeItem(it.Payload)
 			if err != nil {
@@ -181,6 +210,13 @@ func (h *Handler) envelope(w http.ResponseWriter, r *http.Request) {
 	}
 	if !h.allow(w, key, len(events)) {
 		return
+	}
+	if len(transactions) > 0 {
+		if err := perf.Enqueue(r.Context(), h.DB, key.OrgID, key.ProjectID, transactions); err != nil {
+			h.Log.Error("ingest: enqueue transactions", "err", err)
+			fail(w, http.StatusServiceUnavailable, "temporarily unavailable")
+			return
+		}
 	}
 	if len(logRecords) > 0 {
 		recs := logs.Clean(logRecords, scrub.New(key.Scrub), time.Now().UTC())

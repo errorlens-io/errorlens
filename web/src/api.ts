@@ -76,6 +76,20 @@ export type BillingInfo = {
 };
 export type AdminOrg = { id: string; name: string; slug: string; plan: string; quota: number | null; billingStatus: string; members: number; projects: number; usedThisMonth: number; createdAt: string };
 
+export type TxSummary = { name: string; project: string; op: string; count: number; p50: number; p95: number; avg: number; failureRate: number; perMinute: number };
+export type TxRow = { id: string; traceId: string; name: string; project: string; op: string; status: string; start: string; durationMs: number; release: string; environment: string; tags: Record<string, string> };
+export type Span = { spanId: string; parentId?: string; op: string; description: string; status?: string; startMs: number; durationMs: number; data?: Record<string, string> };
+export type TraceView = {
+  traceId: string; transactions: (TxRow & { spans: Span[] })[];
+  errors: { issueId: number; eventId: string; title: string; level: string; timestamp: string }[]; logs: LogLine[];
+};
+export type Monitor = {
+  id: string; project: string; slug: string; name: string; kind: "cron" | "uptime"; schedule: string; timezone: string;
+  checkinMarginMinutes: number; maxRuntimeMinutes: number; url: string; intervalSeconds: number; timeoutSeconds: number;
+  expectedStatus: number; status: string; lastCheckIn: string | null; nextExpected: string | null; channelIds: string[]; enabled: boolean; recent: string[];
+};
+export type CheckIn = { id: string; status: string; startedAt: string; finishedAt: string | null; durationMs: number | null; environment: string; details: string };
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -125,6 +139,16 @@ export const api = {
   billing: (org: string) => request<BillingInfo>("GET", `/organizations/${org}/billing`),
   billingCheckout: (org: string, plan: string) => request<{ url: string }>("POST", `/organizations/${org}/billing/checkout`, { plan }),
   billingPortal: (org: string) => request<{ url: string }>("POST", `/organizations/${org}/billing/portal`, {}),
+  performance: (org: string, p: { period?: string; project?: string; query?: string; sort?: string }) =>
+    request<TxSummary[]>("GET", `/organizations/${org}/performance${qs(p)}`),
+  transactions: (org: string, p: { name: string; period?: string; project?: string; sort?: string }) =>
+    request<TxRow[]>("GET", `/organizations/${org}/transactions${qs(p)}`),
+  trace: (org: string, id: string) => request<TraceView>("GET", `/organizations/${org}/traces/${id}`),
+  monitors: (org: string) => request<Monitor[]>("GET", `/organizations/${org}/monitors`),
+  monitor: (org: string, id: string) => request<{ monitor: Monitor; checkins: CheckIn[] }>("GET", `/organizations/${org}/monitors/${id}`),
+  saveMonitor: (org: string, b: Partial<Monitor>, id?: string) =>
+    request<{ id: string }>(id ? "PUT" : "POST", `/organizations/${org}/monitors${id ? `/${id}` : ""}`, b),
+  deleteMonitor: (org: string, id: string) => request<void>("DELETE", `/organizations/${org}/monitors/${id}`),
   adminOrgs: () => request<AdminOrg[]>("GET", "/admin/organizations"),
   adminUpdateOrg: (id: string, plan: string, quota: number | null) => request<{ ok: boolean }>("PUT", `/admin/organizations/${id}`, { plan, quota }),
   logout: () => request<void>("POST", "/auth/logout", {}),

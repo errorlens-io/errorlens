@@ -377,6 +377,11 @@ func tagsOf(ev *Event, raw map[string]any) map[string]string {
 			}
 		}
 	}
+	if ctx, ok := raw["contexts"].(map[string]any); ok {
+		if tr, ok := ctx["trace"].(map[string]any); ok {
+			set("trace_id", str(tr["trace_id"]))
+		}
+	}
 	if u, ok := raw["user"].(map[string]any); ok {
 		for _, k := range []string{"id", "username", "email", "ip_address"} {
 			if v := str(u[k]); v != "" {
