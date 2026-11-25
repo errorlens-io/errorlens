@@ -392,3 +392,10 @@ func tooLarge(err error) error {
 	}
 	return fmt.Errorf("could not read body: %v", err)
 }
+
+// InvalidateCache forgets cached DSN keys (call after keys change).
+func (h *Handler) InvalidateCache() {
+	h.mu.Lock()
+	h.cache = map[string]cachedKey{}
+	h.mu.Unlock()
+}

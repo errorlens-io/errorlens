@@ -20,6 +20,7 @@ import (
 	"github.com/rootcausehq/rootcause/internal/config"
 	"github.com/rootcausehq/rootcause/internal/db"
 	"github.com/rootcausehq/rootcause/internal/ingest"
+	"github.com/rootcausehq/rootcause/internal/notify"
 	"github.com/rootcausehq/rootcause/internal/version"
 )
 
@@ -33,6 +34,8 @@ type Server struct {
 	ui           fs.FS // built web UI; may be nil
 	loginByIP    *auth.Limiter
 	loginByEmail *auth.Limiter
+	sender       *notify.Sender
+	ingest       *ingest.Handler
 }
 
 // New builds a Server. ui is the static web bundle (nil disables the UI).
@@ -44,13 +47,18 @@ func New(cfg *config.Config, d *db.DB, log *slog.Logger, ui fs.FS) *Server {
 		ui:           ui,
 		loginByIP:    auth.NewLimiter(2*time.Second, 30),
 		loginByEmail: auth.NewLimiter(30*time.Second, 10),
+		sender:       &notify.Sender{HTTP: notify.NewHTTPClient(cfg.AllowPrivateWebhooks), SMTP: cfg.SMTP},
+		ingest:       ingest.NewHandler(d, log),
 	}
 }
+
+// ingestKeysChanged drops cached DSN keys so changes apply immediately.
+func (s *Server) ingestKeysChanged() { s.ingest.InvalidateCache() }
 
 // Handler returns the root HTTP handler.
 func (s *Server) Handler() http.Handler {
 	r := chi.NewRouter()
-	r.Use(middleware.RealIP) // TODO(phase-1): only trust X-Forwarded-For from configured proxies
+	r.Use(realIP(s.cfg.TrustedProxies))
 	r.Use(middleware.Recoverer)
 	r.Use(securityHeaders)
 
@@ -58,7 +66,7 @@ func (s *Server) Handler() http.Handler {
 	r.Get("/readyz", s.readyz)
 
 	// SDK event ingestion: /api/{projectID}/envelope/ and /store/.
-	ingest.NewHandler(s.db, s.log).Routes(r)
+	s.ingest.Routes(r)
 
 	r.Route("/api/0", func(r chi.Router) {
 		r.Use(limitBody(1 << 20))
@@ -72,6 +80,8 @@ func (s *Server) Handler() http.Handler {
 		r.Post("/setup", s.setup)
 		r.Post("/auth/login", s.login)
 		r.Post("/auth/logout", s.logout)
+		r.Get("/invitations/{token}", s.getInvite)
+		r.Post("/invitations/{token}/accept", s.acceptInvite)
 
 		r.Group(func(r chi.Router) {
 			r.Use(requireUser)
@@ -87,6 +97,33 @@ func (s *Server) Handler() http.Handler {
 				r.With(requireRole("owner", "admin", "member")).Put("/issues/{issueID}", s.updateIssue)
 				r.Get("/issues/{issueID}/events", s.listIssueEvents)
 				r.Get("/issues/{issueID}/events/{eventID}", s.getEvent)
+
+				admin := requireRole("owner", "admin")
+				r.Route("/projects/{project}", func(r chi.Router) {
+					r.Use(admin)
+					r.Get("/", s.getProjectSettings)
+					r.Put("/", s.updateProjectSettings)
+					r.Delete("/", s.deleteProject)
+					r.Post("/keys", s.createKey)
+					r.Put("/keys/{keyID}", s.updateKey)
+				})
+
+				r.With(admin).Get("/alerts/channels", s.listChannels)
+				r.With(admin).Post("/alerts/channels", s.createChannel)
+				r.With(admin).Put("/alerts/channels/{channelID}", s.updateChannel)
+				r.With(admin).Delete("/alerts/channels/{channelID}", s.deleteChannel)
+				r.With(admin).Post("/alerts/channels/{channelID}/test", s.testChannel)
+				r.With(admin).Get("/alerts/rules", s.listRules)
+				r.With(admin).Post("/alerts/rules", s.saveRule)
+				r.With(admin).Put("/alerts/rules/{ruleID}", s.saveRule)
+				r.With(admin).Delete("/alerts/rules/{ruleID}", s.deleteRule)
+				r.With(admin).Get("/alerts/history", s.listAlertHistory)
+
+				r.Get("/members", s.listMembers)
+				r.With(admin).Post("/members", s.invite)
+				r.With(admin).Delete("/invitations/{email}", s.revokeInvite)
+				r.With(admin).Put("/members/{userID}", s.updateMember)
+				r.With(admin).Delete("/members/{userID}", s.removeMember)
 			})
 		})
 		r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
@@ -145,7 +182,9 @@ func (s *Server) sameOrigin(next http.Handler) http.Handler {
 				writeError(w, http.StatusForbidden, "cross-origin request rejected")
 				return
 			}
-			if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+			// Bodyless DELETEs are safe: browsers can't send cross-site DELETEs without a CORS preflight.
+			bodyless := r.Method == http.MethodDelete && r.ContentLength <= 0
+			if !bodyless && !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 				writeError(w, http.StatusUnsupportedMediaType, "content type must be application/json")
 				return
 			}

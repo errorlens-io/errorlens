@@ -6,8 +6,7 @@ RootCause is a privacy-first alternative to hosted error trackers. It runs entir
 infrastructure, works with the error-reporting SDKs you already use (just change the DSN), and is
 designed so sensitive data is scrubbed before it is ever written to disk.
 
-> **Status: early development (Phase 1 in progress).** Error ingestion from standard SDKs, scrubbing, grouping into issues, and the issues UI work.
-> Alerts and project privacy settings are next. See [PLAN.md](PLAN.md) for the roadmap.
+> **Status: early development.** Phase 1 complete: error ingestion, scrubbing, grouping, issues UI, alerts (email/Slack/Discord/webhook), team invitations, privacy settings and audit log.
 
 ## Why
 

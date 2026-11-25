@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -18,6 +20,26 @@ type Config struct {
 	PublicURL   *url.URL
 	LogLevel    slog.Level
 	SessionTTL  time.Duration
+
+	// TrustedProxies are networks whose X-Forwarded-For header is believed.
+	TrustedProxies []*net.IPNet
+	// AllowPrivateWebhooks lets alert webhooks target private/loopback
+	// addresses (useful for self-hosted chat; unsafe for multi-tenant hosting).
+	AllowPrivateWebhooks bool
+	// SignupEnabled allows anyone to create an account and organization
+	// (hosted mode). Self-hosted instances usually keep it off.
+	SignupEnabled bool
+
+	SMTP SMTP
+}
+
+// SMTP configures outgoing email (alerts, invitations). Host "" disables email.
+type SMTP struct {
+	Host     string
+	Port     int
+	Username string
+	Password string
+	From     string
 }
 
 // SecureCookies reports whether cookies must carry the Secure flag.
@@ -60,5 +82,46 @@ func Load(getenv func(string) string) (*Config, error) {
 	}
 	cfg.SessionTTL = ttl
 
+	for _, s := range strings.Split(get("ROOTCAUSE_TRUSTED_PROXIES", ""), ",") {
+		if s = strings.TrimSpace(s); s == "" {
+			continue
+		}
+		if !strings.Contains(s, "/") {
+			if strings.Contains(s, ":") {
+				s += "/128"
+			} else {
+				s += "/32"
+			}
+		}
+		_, n, err := net.ParseCIDR(s)
+		if err != nil {
+			return nil, fmt.Errorf("ROOTCAUSE_TRUSTED_PROXIES: invalid network %q", s)
+		}
+		cfg.TrustedProxies = append(cfg.TrustedProxies, n)
+	}
+
+	cfg.AllowPrivateWebhooks = isTrue(get("ROOTCAUSE_ALLOW_PRIVATE_WEBHOOKS", "false"))
+	cfg.SignupEnabled = isTrue(get("ROOTCAUSE_SIGNUP_ENABLED", "false"))
+
+	cfg.SMTP = SMTP{
+		Host:     get("ROOTCAUSE_SMTP_HOST", ""),
+		Username: get("ROOTCAUSE_SMTP_USERNAME", ""),
+		Password: get("ROOTCAUSE_SMTP_PASSWORD", ""),
+		From:     get("ROOTCAUSE_SMTP_FROM", "RootCause <rootcause@localhost>"),
+	}
+	port, err := strconv.Atoi(get("ROOTCAUSE_SMTP_PORT", "587"))
+	if err != nil || port <= 0 || port > 65535 {
+		return nil, fmt.Errorf("ROOTCAUSE_SMTP_PORT must be a port number")
+	}
+	cfg.SMTP.Port = port
+
 	return cfg, nil
+}
+
+func isTrue(s string) bool {
+	switch strings.ToLower(s) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
 }

@@ -220,3 +220,29 @@ a.issue-row:hover { background: var(--bg); }
 .code-block { position: relative; }
 .code-block pre { margin: 0; background: var(--code-bg); padding: 12px 14px; border-radius: 8px; overflow-x: auto; }
 .code-block .copy { position: absolute; top: 6px; right: 6px; padding: 3px 9px; font-size: 0.75rem; background: var(--surface); }
+
+/* --- settings & alerts -------------------------------------------------------- */
+.rows { list-style: none; margin: 0 0 12px; padding: 0; }
+.row-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); min-width: 0; }
+.row-item:first-child { border-top: none; }
+.row-item.wrap { flex-wrap: wrap; }
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.grow { flex: 1 1 200px; min-width: 0; }
+.nowrap { white-space: nowrap; }
+.inline { flex-direction: row; align-items: center; gap: 6px; font-weight: 400; }
+.subform { border-top: 1px dashed var(--border); padding-top: 12px; }
+.rule-form { display: flex; flex-direction: column; gap: 8px; }
+.num { width: 90px; flex: none !important; }
+button.danger, .ghost.danger { color: var(--danger); }
+.danger-btn { background: var(--danger); color: #fff; }
+.danger-zone { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }
+.form-grid { display: flex; flex-direction: column; gap: 12px; }
+.form-grid h2 { margin-top: 8px; }
+.ok-text { color: #059669; }
+.link { color: var(--accent); }
+a.seg { padding: 7px 12px; color: var(--muted); font-weight: 500; }
+a.seg.on { background: var(--accent); color: var(--accent-text); }
+@media (max-width: 600px) {
+  .row-item { flex-wrap: wrap; }
+  .nav { overflow-x: auto; }
+}

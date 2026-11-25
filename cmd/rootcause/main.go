@@ -17,9 +17,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/rootcausehq/rootcause/internal/alert"
 	"github.com/rootcausehq/rootcause/internal/api"
 	"github.com/rootcausehq/rootcause/internal/config"
 	"github.com/rootcausehq/rootcause/internal/db"
+	"github.com/rootcausehq/rootcause/internal/notify"
 	"github.com/rootcausehq/rootcause/internal/process"
 	"github.com/rootcausehq/rootcause/internal/queue"
 	"github.com/rootcausehq/rootcause/internal/retention"
@@ -48,6 +50,10 @@ Configuration is read from environment variables (see README):
   ROOTCAUSE_LISTEN_ADDR    Listen address (default :8080)
   ROOTCAUSE_LOG_LEVEL      debug | info | warn | error (default info)
   ROOTCAUSE_SESSION_TTL    Login session lifetime (default 336h)
+  ROOTCAUSE_TRUSTED_PROXIES  Comma-separated proxy IPs/CIDRs whose X-Forwarded-For is trusted
+  ROOTCAUSE_SMTP_HOST, _PORT, _USERNAME, _PASSWORD, _FROM   Outgoing email
+  ROOTCAUSE_ALLOW_PRIVATE_WEBHOOKS  Allow alert webhooks to private addresses (default false)
+  ROOTCAUSE_SIGNUP_ENABLED   Let anyone create an organization (hosted mode, default false)
 `)
 }
 
@@ -134,7 +140,15 @@ func serve(ctx context.Context, cfg *config.Config, d *db.DB, log *slog.Logger) 
 	}
 
 	worker := queue.NewWorker(d.Pool, log)
-	worker.Handle(process.JobKind, (&process.Processor{DB: d}).Handle)
+	alerts := &alert.Engine{
+		DB:        d,
+		Log:       log,
+		Sender:    &notify.Sender{HTTP: notify.NewHTTPClient(cfg.AllowPrivateWebhooks), SMTP: cfg.SMTP},
+		PublicURL: cfg.PublicURL,
+	}
+	worker.Handle(process.JobKind, (&process.Processor{DB: d, OnOutcome: alerts.OnOutcome}).Handle)
+	worker.Handle(alert.EvaluateJob, alerts.Evaluate)
+	worker.Handle(alert.DeliverJob, alerts.Deliver)
 	workerDone := make(chan struct{})
 	go func() { worker.Run(ctx); close(workerDone) }()
 

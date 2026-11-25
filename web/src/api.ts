@@ -46,6 +46,24 @@ export type EventSummary = {
 export type Payload = Record<string, any>;
 export type EventDetail = EventSummary & { payload: Payload; prev: string | null; next: string | null };
 
+
+export type ProjectKey = { id: string; label: string; dsn: string; active: boolean; createdAt: string };
+export type ProjectSettings = {
+  id: string; name: string; slug: string; platform: string; retentionDays: number;
+  scrubDefaults: boolean; scrubIp: "keep" | "truncate" | "drop"; sensitiveFields: string[]; safeFields: string[];
+  keys: ProjectKey[];
+};
+export type AlertChannel = { id: string; kind: "email" | "slack" | "discord" | "webhook"; name: string; target: string; hasSecret: boolean; enabled: boolean; createdAt: string };
+export type AlertRule = {
+  id: string; name: string; project: string | null; trigger: "new_issue" | "regression" | "frequency";
+  threshold: number; windowMinutes: number; minLevel: string; environment: string; channelIds: string[];
+  cooldownMinutes: number; enabled: boolean;
+};
+export type AlertHistory = { id: number; rule: string | null; issueId: number | null; issueTitle: string | null; channel: string | null; status: string; error: string; createdAt: string };
+export type Member = { userId: string; email: string; name: string; role: string; joinedAt: string };
+export type Invitation = { email: string; role: string; createdAt: string; expiresAt: string };
+export type AuditEntry = { id: number; actorEmail: string | null; action: string; target: string; ip: string; createdAt: string };
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -93,4 +111,36 @@ export const api = {
     request<EventSummary[]>("GET", `/organizations/${org}/issues/${id}/events${qs({ before })}`),
   event: (org: string, issueId: number, eventId: string) =>
     request<EventDetail>("GET", `/organizations/${org}/issues/${issueId}/events/${eventId}`),
+
+  projectSettings: (org: string, p: string) => request<ProjectSettings>("GET", `/organizations/${org}/projects/${p}/`),
+  saveProjectSettings: (org: string, p: string, b: Omit<ProjectSettings, "id" | "slug" | "keys">) =>
+    request<{ ok: boolean }>("PUT", `/organizations/${org}/projects/${p}/`, b),
+  deleteProject: (org: string, p: string) => request<void>("DELETE", `/organizations/${org}/projects/${p}/`),
+  createKey: (org: string, p: string, label: string) => request<{ ok: boolean }>("POST", `/organizations/${org}/projects/${p}/keys`, { label }),
+  setKeyActive: (org: string, p: string, id: string, active: boolean) =>
+    request<{ ok: boolean }>("PUT", `/organizations/${org}/projects/${p}/keys/${id}`, { active }),
+
+  channels: (org: string) => request<AlertChannel[]>("GET", `/organizations/${org}/alerts/channels`),
+  createChannel: (org: string, b: { kind: string; name: string; url?: string; secret?: string; emails?: string[] }) =>
+    request<{ id: string }>("POST", `/organizations/${org}/alerts/channels`, b),
+  deleteChannel: (org: string, id: string) => request<void>("DELETE", `/organizations/${org}/alerts/channels/${id}`),
+  testChannel: (org: string, id: string) => request<{ ok: boolean }>("POST", `/organizations/${org}/alerts/channels/${id}/test`, {}),
+  rules: (org: string) => request<AlertRule[]>("GET", `/organizations/${org}/alerts/rules`),
+  saveRule: (org: string, b: Partial<AlertRule> & { project?: string }, id?: string) =>
+    request<{ id: string }>(id ? "PUT" : "POST", `/organizations/${org}/alerts/rules${id ? `/${id}` : ""}`, b),
+  deleteRule: (org: string, id: string) => request<void>("DELETE", `/organizations/${org}/alerts/rules/${id}`),
+  alertHistory: (org: string) => request<AlertHistory[]>("GET", `/organizations/${org}/alerts/history`),
+
+  members: (org: string) => request<{ members: Member[]; invitations: Invitation[] }>("GET", `/organizations/${org}/members`),
+  invite: (org: string, email: string, role: string) =>
+    request<{ added?: boolean; invited?: boolean; emailed?: boolean; link?: string }>("POST", `/organizations/${org}/members`, { email, role }),
+  revokeInvite: (org: string, email: string) => request<void>("DELETE", `/organizations/${org}/invitations/${encodeURIComponent(email)}`),
+  setMemberRole: (org: string, userId: string, role: string) => request<void>("PUT", `/organizations/${org}/members/${userId}`, { role }),
+  removeMember: (org: string, userId: string) => request<void>("DELETE", `/organizations/${org}/members/${userId}`),
+  auditLog: (org: string) => request<AuditEntry[]>("GET", `/organizations/${org}/audit-log`),
+
+  inviteInfo: (token: string) =>
+    request<{ organization: string; email: string; role: string; accountExists: boolean }>("GET", `/invitations/${token}`),
+  acceptInvite: (token: string, name: string, password: string) =>
+    request<{ organization: string }>("POST", `/invitations/${token}/accept`, { name, password }),
 };

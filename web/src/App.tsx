@@ -3,6 +3,9 @@ import { api, ApiError, Organization, User } from "./api";
 import { IssueDetailPage } from "./pages/IssueDetail";
 import { IssuesPage } from "./pages/Issues";
 import { ProjectsPage } from "./pages/Projects";
+import { AlertsPage } from "./pages/Alerts";
+import { InvitePage } from "./pages/Invite";
+import { SettingsPage } from "./pages/Settings";
 import { linkProps, navigate, useLocation } from "./router";
 
 type Session = { user: User; organizations: Organization[] };
@@ -24,6 +27,12 @@ export function App() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Invitation links work whether or not someone is signed in.
+  const invite = location.pathname.match(/^\/invite\/([A-Za-z0-9_-]+)$/);
+  if (invite && view.kind !== "loading") {
+    return <InvitePage token={invite[1]} onDone={refresh} Brand={Brand} />;
+  }
 
   switch (view.kind) {
     case "loading":
@@ -131,11 +140,16 @@ function Shell({ session, onLogout }: { session: Session; onLogout: () => void }
   }
 
   const section = parts[1] ?? "issues";
+  const isAdmin = org.role === "owner" || org.role === "admin";
   let page: React.ReactNode;
   if (section === "issues" && parts[2] && /^\d+$/.test(parts[2])) {
     page = <IssueDetailPage key={parts[2]} org={org.slug} id={Number(parts[2])} role={org.role} />;
   } else if (section === "projects") {
     page = <ProjectsPage org={org} />;
+  } else if (section === "alerts") {
+    page = <AlertsPage org={org.slug} />;
+  } else if (section === "settings") {
+    page = <SettingsPage org={org} tab={parts[2] ?? "members"} project={parts[3]} />;
   } else {
     page = <IssuesPage org={org.slug} search={search} />;
   }
@@ -153,6 +167,8 @@ function Shell({ session, onLogout }: { session: Session; onLogout: () => void }
         <nav className="nav">
           <a className={section === "issues" ? "active" : ""} {...linkProps(`/${org.slug}/issues`)}>Issues</a>
           <a className={section === "projects" ? "active" : ""} {...linkProps(`/${org.slug}/projects`)}>Projects</a>
+          {isAdmin && <a className={section === "alerts" ? "active" : ""} {...linkProps(`/${org.slug}/alerts`)}>Alerts</a>}
+          <a className={section === "settings" ? "active" : ""} {...linkProps(`/${org.slug}/settings/members`)}>Settings</a>
         </nav>
         {session.organizations.length > 1 && (
           <select aria-label="Organization" value={org.slug} onChange={(e) => navigate(`/${e.target.value}/issues`)}>
