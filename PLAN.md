@@ -10,10 +10,10 @@ Status: draft v0.1 · 2026-11-25
 ## 1. Goals
 
 1. **Privacy by construction.** Sensitive data is scrubbed *before* it is written to disk. No telemetry, no phone-home, no third-party scripts in the UI.
-2. **Drop-in for Sentry SDKs.** Users keep their existing Sentry SDK and only change the DSN. Every language Sentry supports works on day one.
+2. **Drop-in for existing SDKs.** Teams keep the open-source error SDKs already in their apps and only change the DSN. Every major language works on day one.
 3. **One container to run.** `docker run rootcausehq/rootcause` + Postgres. Runs in ~512 MB RAM for small teams.
 4. **One codebase, two deployments.** Self-hosted (single org) and RootCause Cloud (paid, multi-tenant) run the same code.
-5. **Clean-room implementation.** No code copied from Sentry's FSL-licensed server. Only the public wire protocol (documented in the MIT-licensed SDKs and Sentry's public developer docs) is implemented.
+5. **Clean-room implementation.** No code copied from any proprietary or source-available product. Only the public wire protocol (documented by the open-source SDKs) is implemented.
 
 ### Non-goals for v1
 Session replay, profiling, full APM/tracing UI, native crash (minidump) symbolication, mobile dSYM/ProGuard. These come later or never.
@@ -37,7 +37,7 @@ Session replay, profiling, full APM/tracing UI, native crash (minidump) symbolic
 ## 3. High-level architecture
 
 ```
-  Your app (Sentry SDK)          Browser (UI)
+  Your app (SDK)                 Browser (UI)
           │ envelope/store              │
           ▼                             ▼
  ┌──────────────────────────────────────────────┐
@@ -70,7 +70,7 @@ The binary can run all roles, or be split with `--role=ingest|worker|web` for sc
 
 ---
 
-## 4. Ingestion (Sentry protocol compatibility)
+## 4. Ingestion (SDK protocol compatibility)
 
 ### DSN
 ```
@@ -87,7 +87,7 @@ https://<public_key>@rootcause.example.com/<project_id>
 | `POST /v1/logs`, `/v1/traces` | OpenTelemetry (OTLP/HTTP) | phase 2 |
 
 ### Auth
-Accept the key from any of: `X-Sentry-Auth` header, `sentry_key` query param, or the envelope header `dsn`. Validate against `project_keys`. Handle CORS for browser SDKs (allowed origins per project).
+Accept the key from any of: the SDK auth header, the public-key query param, or the envelope header `dsn` (exact protocol names live in `internal/ingest/protocol.go`). Validate against `project_keys`. Handle CORS for browser SDKs (allowed origins per project).
 
 ### Envelope item types
 | Item | MVP behavior |
@@ -100,7 +100,7 @@ Accept the key from any of: `X-Sentry-Auth` header, `sentry_key` query param, or
 | `session`, `sessions` | Accept, aggregate counts — phase 2 |
 | `replay_*`, `profile`, `check_in` | Accept with 200, discard |
 
-Always return 200 for well-formed but unsupported items so SDKs don't retry forever. Support `gzip`, `deflate`, `br` request bodies. Enforce max body size (default 1 MB compressed / 20 MB decompressed). Return `429` with `Retry-After` and `X-Sentry-Rate-Limits` when quota is exceeded.
+Always return 200 for well-formed but unsupported items so SDKs don't retry forever. Support `gzip`, `deflate`, `br` request bodies. Enforce max body size (default 1 MB compressed / 20 MB decompressed). Return `429` with `Retry-After` and the SDK rate-limit header when quota is exceeded.
 
 ---
 
@@ -277,7 +277,7 @@ rootcause/
 ### Phase 2 — Logs & developer workflow (≈6 weeks)
 - `log` envelope items + OTLP logs ingestion, logs explorer, live tail
 - Releases, environments, "first seen in release"
-- **JavaScript source maps** (upload via sentry-cli-compatible API or our own CLI)
+- **JavaScript source maps** (upload via our own CLI, compatible with existing upload tooling)
 - Attachments, session counts / crash-free rate
 - App-level payload encryption (DEK/KEK)
 
@@ -302,7 +302,7 @@ rootcause/
 | 1 | **License** | **AGPL-3.0** for the server (stops others reselling a closed hosted copy, keeps it truly open source) + MIT for any CLI/SDK helpers. Alternative: Apache-2.0 for maximum adoption, accepting that clouds could resell it. |
 | 2 | Backend language | Go (fast to build, tiny image). Rust only if the team already knows it. |
 | 3 | Cloud-only code | Keep in a private repo/module behind interfaces; open core stays feature-complete for self-hosters. |
-| 4 | Own SDKs? | No — rely on Sentry's MIT SDKs + OpenTelemetry. Revisit only if protocol divergence becomes a problem. |
+| 4 | Own SDKs? | Phase 1–2: reuse the existing MIT-licensed SDKs + OpenTelemetry. Later: publish RootCause-branded SDK packages (MIT allows forking/renaming) so setup docs only show RootCause names. |
 | 5 | Contributor agreement | Use DCO (sign-off), not a CLA, to build community trust. |
 
 ---
@@ -311,9 +311,9 @@ rootcause/
 
 | Risk | Mitigation |
 |---|---|
-| Grouping quality worse than Sentry → noisy issues | Real-payload test corpus, snapshot tests, user-editable fingerprint rules, merge/unmerge issues |
-| Sentry changes protocol | Protocol is versioned and SDKs stay backward compatible; integration tests pinned to SDK versions in CI |
-| Trademark: must not imply Sentry affiliation | Say "compatible with Sentry SDKs", never use Sentry's logo/name in branding |
+| Grouping quality worse than incumbents → noisy issues | Real-payload test corpus, snapshot tests, user-editable fingerprint rules, merge/unmerge issues |
+| Upstream SDK protocol changes | Protocol is versioned and SDKs stay backward compatible; integration tests pinned to SDK versions in CI |
+| Trademark / affiliation confusion | Never use other products' names or logos anywhere in RootCause; own brand, own UI design |
 | Postgres limits at high volume | Partitioning, batching inserts, COPY; ClickHouse adapter for large users |
 | Security bug undermines the privacy brand | Scrub-before-disk invariant tested, RLS, fuzzing the envelope parser, external audit before Cloud launch, bug bounty |
 | Domain not yet purchased | Buy rootcause.sh before any public announcement |

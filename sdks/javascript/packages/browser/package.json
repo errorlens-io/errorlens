@@ -1,0 +1,39 @@
+{
+  "name": "@rootcausehq/browser",
+  "version": "0.1.0",
+  "description": "Browser SDK for RootCause, the open-source, self-hosted error tracker.",
+  "license": "MIT",
+  "homepage": "https://rootcause.sh",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rootcausehq/rootcause.git",
+    "directory": "sdks/javascript/packages/browser"
+  },
+  "keywords": [
+    "rootcause",
+    "error tracking",
+    "exceptions",
+    "monitoring"
+  ],
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json && node ../../scripts/fix-cjs.mjs dist"
+  },
+  "dependencies": {
+    "@sentry/browser": "^11.17.0"
+  }
+}

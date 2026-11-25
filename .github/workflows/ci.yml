@@ -54,3 +54,30 @@ jobs:
           file: deploy/Dockerfile
           push: false
           tags: rootcausehq/rootcause:ci
+
+  sdk-python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        core: ["sentry-sdk>=2,<3", "sentry-sdk>=3,<4"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test
+        working-directory: sdks/python
+        run: |
+          pip install "${{ matrix.core }}" -e .
+          python -m unittest discover -s tests -v
+
+  sdk-javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Test
+        working-directory: sdks/javascript
+        run: npm ci && npm test

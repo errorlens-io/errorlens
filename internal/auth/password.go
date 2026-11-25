@@ -101,7 +101,7 @@ func HashToken(token string) []byte {
 	return h[:]
 }
 
-// NewPublicKey returns a 32-hex-char DSN public key, like Sentry's.
+// NewPublicKey returns a 32-hex-char DSN public key.
 func NewPublicKey() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {

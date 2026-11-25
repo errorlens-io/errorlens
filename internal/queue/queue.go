@@ -32,19 +32,21 @@ type Querier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-// Enqueue inserts a job that becomes runnable at runAt (zero = now).
+// Enqueue inserts a job that becomes runnable at runAt (zero = now, using
+// the database clock so app/DB clock skew cannot delay jobs).
 func Enqueue(ctx context.Context, q Querier, kind string, payload any, runAt time.Time) (int64, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return 0, err
 	}
-	if runAt.IsZero() {
-		runAt = time.Now()
+	var at *time.Time
+	if !runAt.IsZero() {
+		at = &runAt
 	}
 	var id int64
 	err = q.QueryRow(ctx,
-		`INSERT INTO jobs (kind, payload, run_at) VALUES ($1, $2, $3) RETURNING id`,
-		kind, body, runAt).Scan(&id)
+		`INSERT INTO jobs (kind, payload, run_at) VALUES ($1, $2, COALESCE($3, now())) RETURNING id`,
+		kind, body, at).Scan(&id)
 	return id, err
 }
 

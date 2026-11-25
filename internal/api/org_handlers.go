@@ -86,7 +86,7 @@ func requireRole(roles ...string) func(http.Handler) http.Handler {
 	}
 }
 
-// dsn builds a Sentry-SDK-compatible DSN: scheme://key@host[/path]/projectSeq
+// dsn builds the DSN SDKs are configured with: scheme://key@host[/path]/projectSeq
 func (s *Server) dsn(publicKey string, projectSeq int64) string {
 	u := s.cfg.PublicURL
 	return fmt.Sprintf("%s://%s@%s%s/%d", u.Scheme, publicKey, u.Host, u.Path, projectSeq)

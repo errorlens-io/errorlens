@@ -1,5 +1,9 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { api, ApiError, Organization, Project, User } from "./api";
+import { api, ApiError, Organization, User } from "./api";
+import { IssueDetailPage } from "./pages/IssueDetail";
+import { IssuesPage } from "./pages/Issues";
+import { ProjectsPage } from "./pages/Projects";
+import { linkProps, navigate, useLocation } from "./router";
 
 type Session = { user: User; organizations: Organization[] };
 type View = { kind: "loading" } | { kind: "setup" } | { kind: "login" } | { kind: "app"; session: Session };
@@ -29,7 +33,7 @@ export function App() {
     case "login":
       return <LoginPage onDone={refresh} />;
     case "app":
-      return <Dashboard session={view.session} onLogout={refresh} />;
+      return <Shell session={view.session} onLogout={refresh} />;
   }
 }
 
@@ -111,95 +115,55 @@ function LoginPage({ onDone }: { onDone: () => void }) {
   );
 }
 
-const PLATFORMS = ["javascript", "node", "python", "go", "java", "php", "ruby", "dotnet", "rust", "react-native", "flutter", "android", "apple", "other"];
+function Shell({ session, onLogout }: { session: Session; onLogout: () => void }) {
+  const { path, search } = useLocation();
+  const parts = path.split("/").filter(Boolean);
+  const fallback = session.organizations[0]?.slug ?? "";
+  const org = session.organizations.find((o) => o.slug === parts[0]);
 
-function Dashboard({ session, onLogout }: { session: Session; onLogout: () => void }) {
-  const [orgSlug, setOrgSlug] = useState(session.organizations[0]?.slug ?? "");
-  const org = session.organizations.find((o) => o.slug === orgSlug);
-  const [projects, setProjects] = useState<Project[] | null>(null);
-  const [name, setName] = useState("");
-  const [platform, setPlatform] = useState("javascript");
-  const canManage = org?.role === "owner" || org?.role === "admin";
-
+  // "/" or an unknown org: go to the first org's issues.
   useEffect(() => {
-    if (!orgSlug) return;
-    setProjects(null);
-    api.projects(orgSlug).then(setProjects);
-  }, [orgSlug]);
+    if (!org && fallback) navigate(`/${fallback}/issues`);
+  }, [org, fallback]);
 
-  const { error, busy, submit } = useSubmit(async () => {
-    const p = await api.createProject(orgSlug, name, platform);
-    setProjects((ps) => [...(ps ?? []), p].sort((a, b) => a.name.localeCompare(b.name)));
-    setName("");
-  });
+  if (!org) {
+    return fallback ? null : <div className="center muted">You are not a member of any organization.</div>;
+  }
+
+  const section = parts[1] ?? "issues";
+  let page: React.ReactNode;
+  if (section === "issues" && parts[2] && /^\d+$/.test(parts[2])) {
+    page = <IssueDetailPage key={parts[2]} org={org.slug} id={Number(parts[2])} role={org.role} />;
+  } else if (section === "projects") {
+    page = <ProjectsPage org={org} />;
+  } else {
+    page = <IssuesPage org={org.slug} search={search} />;
+  }
 
   const logout = async () => {
     await api.logout();
+    navigate("/");
     onLogout();
   };
 
   return (
     <div className="layout">
       <header className="topbar">
-        <Brand />
+        <a className="brand-link" {...linkProps(`/${org.slug}/issues`)}><Brand /></a>
+        <nav className="nav">
+          <a className={section === "issues" ? "active" : ""} {...linkProps(`/${org.slug}/issues`)}>Issues</a>
+          <a className={section === "projects" ? "active" : ""} {...linkProps(`/${org.slug}/projects`)}>Projects</a>
+        </nav>
         {session.organizations.length > 1 && (
-          <select value={orgSlug} onChange={(e) => setOrgSlug(e.target.value)}>
-            {session.organizations.map((o) => (
-              <option key={o.id} value={o.slug}>{o.name}</option>
-            ))}
+          <select aria-label="Organization" value={org.slug} onChange={(e) => navigate(`/${e.target.value}/issues`)}>
+            {session.organizations.map((o) => <option key={o.id} value={o.slug}>{o.name}</option>)}
           </select>
         )}
         <div className="spacer" />
-        <span className="muted">{session.user.email}</span>
+        <span className="muted user-email">{session.user.email}</span>
         <button className="ghost" onClick={logout}>Sign out</button>
       </header>
-
-      <main>
-        <h1>{org?.name ?? "No organization"}</h1>
-        <p className="muted">Projects receive errors from your apps. Point any Sentry SDK at a project's DSN.</p>
-
-        {canManage && (
-          <form className="card row" onSubmit={submit}>
-            <input placeholder="New project name" required value={name} onChange={(e) => setName(e.target.value)} />
-            <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
-              {PLATFORMS.map((p) => <option key={p}>{p}</option>)}
-            </select>
-            <button disabled={busy}>Create project</button>
-            {error && <p className="error">{error}</p>}
-          </form>
-        )}
-
-        {projects === null ? (
-          <p className="muted">Loading projects…</p>
-        ) : projects.length === 0 ? (
-          <div className="card empty">No projects yet. Create one to get a DSN.</div>
-        ) : (
-          <ul className="projects">
-            {projects.map((p) => <ProjectCard key={p.id} project={p} />)}
-          </ul>
-        )}
-      </main>
+      <main>{page}</main>
     </div>
-  );
-}
-
-function ProjectCard({ project }: { project: Project }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    await navigator.clipboard.writeText(project.dsn);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-  return (
-    <li className="card">
-      <div className="project-head">
-        <strong>{project.name}</strong>
-        <span className="tag">{project.platform}</span>
-      </div>
-      <div className="dsn">
-        <code>{project.dsn || "No active key"}</code>
-        {project.dsn && <button className="ghost" onClick={copy}>{copied ? "Copied" : "Copy DSN"}</button>}
-      </div>
-    </li>
   );
 }

@@ -112,7 +112,7 @@ func TestSetupLoginProjectsFlow(t *testing.T) {
 		t.Fatalf("me = %d %v", code, body)
 	}
 
-	// Create a project and get a Sentry-compatible DSN.
+	// Create a project and get its DSN.
 	code, body, _ = c.do("POST", "/api/0/organizations/acme-inc/projects", map[string]string{"name": "Backend API", "platform": "python"})
 	if code != 201 {
 		t.Fatalf("create project = %d %v", code, body)

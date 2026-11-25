@@ -4,10 +4,10 @@ Thanks for helping! A few ground rules keep the project healthy.
 
 ## Clean-room rule
 
-RootCause is compatible with Sentry SDKs, but **must not contain code copied or translated
-from Sentry's server** (which is under the Functional Source License). Implement behavior from
-public protocol documentation and SDK behavior only. If you have worked on Sentry's server
-code, say so in your PR so reviewers can take extra care.
+RootCause **must not contain code copied or translated from any proprietary or
+source-available product**. Implement behavior from public protocol documentation and
+open-source SDK behavior only. If you have worked on the server code of a competing product,
+say so in your PR so reviewers can take extra care.
 
 ## Developer Certificate of Origin
 

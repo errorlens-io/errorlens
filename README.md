@@ -3,11 +3,11 @@
 **Open-source, self-hosted error and log tracking. Your errors, your servers, your eyes only.**
 
 RootCause is a privacy-first alternative to hosted error trackers. It runs entirely on your
-infrastructure, accepts events from the official Sentry SDKs (just change the DSN), and is
+infrastructure, works with the error-reporting SDKs you already use (just change the DSN), and is
 designed so sensitive data is scrubbed before it is ever written to disk.
 
-> **Status: early development (Phase 0).** Accounts, organizations, projects and DSNs work.
-> Event ingestion arrives in Phase 1. See [PLAN.md](PLAN.md) for the roadmap.
+> **Status: early development (Phase 1 in progress).** Error ingestion from standard SDKs, scrubbing, grouping into issues, and the issues UI work.
+> Alerts and project privacy settings are next. See [PLAN.md](PLAN.md) for the roadmap.
 
 ## Why
 
@@ -58,5 +58,4 @@ the transaction, and Row-Level Security policies filter every query. Details in 
 
 ## License
 
-[AGPL-3.0](LICENSE). Not affiliated with Sentry; "compatible with Sentry SDKs" refers only to
-the public event protocol.
+[AGPL-3.0](LICENSE).

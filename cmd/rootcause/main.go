@@ -20,7 +20,9 @@ import (
 	"github.com/rootcausehq/rootcause/internal/api"
 	"github.com/rootcausehq/rootcause/internal/config"
 	"github.com/rootcausehq/rootcause/internal/db"
+	"github.com/rootcausehq/rootcause/internal/process"
 	"github.com/rootcausehq/rootcause/internal/queue"
+	"github.com/rootcausehq/rootcause/internal/retention"
 	"github.com/rootcausehq/rootcause/internal/version"
 	"github.com/rootcausehq/rootcause/web"
 )
@@ -132,8 +134,15 @@ func serve(ctx context.Context, cfg *config.Config, d *db.DB, log *slog.Logger) 
 	}
 
 	worker := queue.NewWorker(d.Pool, log)
+	worker.Handle(process.JobKind, (&process.Processor{DB: d}).Handle)
 	workerDone := make(chan struct{})
 	go func() { worker.Run(ctx); close(workerDone) }()
+
+	// Daily event partitions and retention clean-up.
+	maintCtx, stopMaint := context.WithCancel(ctx)
+	maintDone := make(chan struct{})
+	go func() { retention.Run(maintCtx, d, log); close(maintDone) }()
+	defer func() { stopMaint(); <-maintDone }()
 
 	errCh := make(chan error, 1)
 	go func() {

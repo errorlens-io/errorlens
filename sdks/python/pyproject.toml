@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rootcausehq"
+dynamic = ["version"]
+description = "Python SDK for RootCause, the open-source, self-hosted error tracker."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [{ name = "RootCause contributors" }]
+keywords = ["error tracking", "exceptions", "monitoring", "self-hosted", "rootcause"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Bug Tracking",
+]
+# The transport/instrumentation layer is the MIT-licensed open-source error SDK.
+dependencies = ["sentry-sdk>=2.0,<4"]
+
+[project.urls]
+Homepage = "https://rootcause.sh"
+Source = "https://github.com/rootcausehq/rootcause"
+
+[tool.hatch.version]
+path = "src/rootcausehq/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rootcausehq"]

@@ -3,6 +3,7 @@ module github.com/rootcausehq/rootcause
 go 1.27.1
 
 require (
+	github.com/andybalholm/brotli v1.3.0
 	github.com/go-chi/chi/v5 v5.5.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.13.0

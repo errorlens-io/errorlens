@@ -16,6 +16,7 @@ const (
 	ActionLoginFailed   = "user.login_failed"
 	ActionLogout        = "user.logout"
 	ActionProjectCreate = "project.create"
+	ActionEventView     = "event.view" // someone opened a full event payload
 )
 
 // Entry is one audit record.

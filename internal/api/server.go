@@ -19,6 +19,7 @@ import (
 	"github.com/rootcausehq/rootcause/internal/auth"
 	"github.com/rootcausehq/rootcause/internal/config"
 	"github.com/rootcausehq/rootcause/internal/db"
+	"github.com/rootcausehq/rootcause/internal/ingest"
 	"github.com/rootcausehq/rootcause/internal/version"
 )
 
@@ -56,6 +57,9 @@ func (s *Server) Handler() http.Handler {
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	r.Get("/readyz", s.readyz)
 
+	// SDK event ingestion: /api/{projectID}/envelope/ and /store/.
+	ingest.NewHandler(s.db, s.log).Routes(r)
+
 	r.Route("/api/0", func(r chi.Router) {
 		r.Use(limitBody(1 << 20))
 		r.Use(s.sameOrigin)
@@ -77,6 +81,12 @@ func (s *Server) Handler() http.Handler {
 				r.Get("/projects", s.listProjects)
 				r.With(requireRole("owner", "admin")).Post("/projects", s.createProject)
 				r.With(requireRole("owner", "admin")).Get("/audit-log", s.listAuditLog)
+
+				r.Get("/issues", s.listIssues)
+				r.Get("/issues/{issueID}", s.getIssue)
+				r.With(requireRole("owner", "admin", "member")).Put("/issues/{issueID}", s.updateIssue)
+				r.Get("/issues/{issueID}/events", s.listIssueEvents)
+				r.Get("/issues/{issueID}/events/{eventID}", s.getEvent)
 			})
 		})
 		r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
