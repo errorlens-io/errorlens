@@ -1,0 +1,186 @@
+// Package api serves RootCause's HTTP endpoints: the JSON API used by the
+// web UI, health checks, and the embedded single-page app.
+package api
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"io/fs"
+	"log/slog"
+	"net"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/rootcausehq/rootcause/internal/auth"
+	"github.com/rootcausehq/rootcause/internal/config"
+	"github.com/rootcausehq/rootcause/internal/db"
+	"github.com/rootcausehq/rootcause/internal/version"
+)
+
+const sessionCookie = "rootcause_session"
+
+// Server holds dependencies for HTTP handlers.
+type Server struct {
+	cfg          *config.Config
+	db           *db.DB
+	log          *slog.Logger
+	ui           fs.FS // built web UI; may be nil
+	loginByIP    *auth.Limiter
+	loginByEmail *auth.Limiter
+}
+
+// New builds a Server. ui is the static web bundle (nil disables the UI).
+func New(cfg *config.Config, d *db.DB, log *slog.Logger, ui fs.FS) *Server {
+	return &Server{
+		cfg:          cfg,
+		db:           d,
+		log:          log,
+		ui:           ui,
+		loginByIP:    auth.NewLimiter(2*time.Second, 30),
+		loginByEmail: auth.NewLimiter(30*time.Second, 10),
+	}
+}
+
+// Handler returns the root HTTP handler.
+func (s *Server) Handler() http.Handler {
+	r := chi.NewRouter()
+	r.Use(middleware.RealIP) // TODO(phase-1): only trust X-Forwarded-For from configured proxies
+	r.Use(middleware.Recoverer)
+	r.Use(securityHeaders)
+
+	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
+	r.Get("/readyz", s.readyz)
+
+	r.Route("/api/0", func(r chi.Router) {
+		r.Use(limitBody(1 << 20))
+		r.Use(s.sameOrigin)
+		r.Use(s.loadSession)
+
+		r.Get("/version", func(w http.ResponseWriter, _ *http.Request) {
+			writeJSON(w, http.StatusOK, map[string]string{"version": version.Version})
+		})
+		r.Get("/setup/status", s.setupStatus)
+		r.Post("/setup", s.setup)
+		r.Post("/auth/login", s.login)
+		r.Post("/auth/logout", s.logout)
+
+		r.Group(func(r chi.Router) {
+			r.Use(requireUser)
+			r.Get("/auth/me", s.me)
+			r.Route("/organizations/{org}", func(r chi.Router) {
+				r.Use(s.loadOrg)
+				r.Get("/projects", s.listProjects)
+				r.With(requireRole("owner", "admin")).Post("/projects", s.createProject)
+				r.With(requireRole("owner", "admin")).Get("/audit-log", s.listAuditLog)
+			})
+		})
+		r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
+			writeError(w, http.StatusNotFound, "not found")
+		})
+	})
+
+	r.NotFound(s.serveUI)
+	return r
+}
+
+func (s *Server) readyz(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	if err := s.db.Pool.Ping(ctx); err != nil {
+		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Write([]byte("ok"))
+}
+
+// --- middleware -----------------------------------------------------------
+
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		// The UI loads nothing from third parties: no CDNs, fonts or analytics.
+		h.Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "no-referrer")
+		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		next.ServeHTTP(w, r)
+	})
+}
+
+func limitBody(n int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, n)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// sameOrigin is the CSRF defence for cookie-authenticated API calls:
+// state-changing requests must be JSON and, if the browser sends an Origin,
+// it must match the configured public URL.
+func (s *Server) sameOrigin(next http.Handler) http.Handler {
+	want := s.cfg.PublicURL.Scheme + "://" + s.cfg.PublicURL.Host
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+		default:
+			if origin := r.Header.Get("Origin"); origin != "" && origin != want {
+				writeError(w, http.StatusForbidden, "cross-origin request rejected")
+				return
+			}
+			if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+				writeError(w, http.StatusUnsupportedMediaType, "content type must be application/json")
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// --- helpers ----------------------------------------------------------------
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func writeError(w http.ResponseWriter, status int, msg string) {
+	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+func (s *Server) internalError(w http.ResponseWriter, r *http.Request, err error) {
+	s.log.Error("request failed", "method", r.Method, "path", r.URL.Path, "err", err)
+	writeError(w, http.StatusInternalServerError, "internal error")
+}
+
+func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(dst); err != nil {
+		var tooBig *http.MaxBytesError
+		if errors.As(err, &tooBig) {
+			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
+		} else {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+		}
+		return false
+	}
+	return true
+}
+
+func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
