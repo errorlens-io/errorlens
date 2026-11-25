@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/errorlenshq/errorlens/internal/config"
+	"github.com/errorlens-io/errorlens/internal/config"
 )
 
 // Message is a rendered alert.

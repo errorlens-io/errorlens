@@ -11,9 +11,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/errorlenshq/errorlens/internal/audit"
-	"github.com/errorlenshq/errorlens/internal/monitor"
-	"github.com/errorlenshq/errorlens/internal/notify"
+	"github.com/errorlens-io/errorlens/internal/audit"
+	"github.com/errorlens-io/errorlens/internal/monitor"
+	"github.com/errorlens-io/errorlens/internal/notify"
 )
 
 func periodStart(r *http.Request) time.Time {

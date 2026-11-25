@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/errorlenshq/errorlens/internal/queue"
-	"github.com/errorlenshq/errorlens/internal/testutil"
+	"github.com/errorlens-io/errorlens/internal/queue"
+	"github.com/errorlens-io/errorlens/internal/testutil"
 )
 
 func TestEnqueueRunDelete(t *testing.T) {

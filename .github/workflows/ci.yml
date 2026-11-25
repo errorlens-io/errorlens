@@ -53,7 +53,7 @@ jobs:
           context: .
           file: deploy/Dockerfile
           push: false
-          tags: errorlenshq/errorlens:ci
+          tags: errorlensio/errorlens:ci
 
   sdk-python:
     runs-on: ubuntu-latest

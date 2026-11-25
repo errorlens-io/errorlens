@@ -4,13 +4,13 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/errorlenshq/errorlens/internal/api"
-	"github.com/errorlenshq/errorlens/internal/config"
-	"github.com/errorlenshq/errorlens/internal/db"
-	"github.com/errorlenshq/errorlens/internal/monitor"
-	"github.com/errorlenshq/errorlens/internal/notify"
-	"github.com/errorlenshq/errorlens/internal/perf"
-	"github.com/errorlenshq/errorlens/internal/queue"
+	"github.com/errorlens-io/errorlens/internal/api"
+	"github.com/errorlens-io/errorlens/internal/config"
+	"github.com/errorlens-io/errorlens/internal/db"
+	"github.com/errorlens-io/errorlens/internal/monitor"
+	"github.com/errorlens-io/errorlens/internal/notify"
+	"github.com/errorlens-io/errorlens/internal/perf"
+	"github.com/errorlens-io/errorlens/internal/queue"
 )
 
 func monitorService(d *db.DB, log *slog.Logger, cfg *config.Config) *monitor.Service {

@@ -16,7 +16,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlens-io/errorlens/internal/db"
 )
 
 // NewDB creates a fresh database, runs migrations and drops it on cleanup.

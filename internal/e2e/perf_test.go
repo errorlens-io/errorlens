@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/errorlenshq/errorlens/internal/monitor"
-	"github.com/errorlenshq/errorlens/internal/notify"
-	"github.com/errorlenshq/errorlens/internal/perf"
+	"github.com/errorlens-io/errorlens/internal/monitor"
+	"github.com/errorlens-io/errorlens/internal/notify"
+	"github.com/errorlens-io/errorlens/internal/perf"
 )
 
 func TestPerformanceAndTraceView(t *testing.T) {

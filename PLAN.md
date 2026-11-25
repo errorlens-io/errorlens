@@ -11,7 +11,7 @@ Status: v0.1 · 2026-11-25 — **Phases 0–4 implemented** (see "Implementation
 
 1. **Privacy by construction.** Sensitive data is scrubbed *before* it is written to disk. No telemetry, no phone-home, no third-party scripts in the UI.
 2. **Drop-in for existing SDKs.** Teams keep the open-source error SDKs already in their apps and only change the DSN. Every major language works on day one.
-3. **One container to run.** `docker run errorlenshq/errorlens` + Postgres. Runs in ~512 MB RAM for small teams.
+3. **One container to run.** `docker run errorlensio/errorlens` + Postgres. Runs in ~512 MB RAM for small teams.
 4. **One codebase, two deployments.** Self-hosted (single org) and ErrorLens Cloud (paid, multi-tenant) run the same code.
 5. **Clean-room implementation.** No code copied from any proprietary or source-available product. Only the public wire protocol (documented by the open-source SDKs) is implemented.
 
@@ -218,7 +218,7 @@ docker run -d -p 8000:8000 \
   -e ERRORLENS_DATABASE_URL=postgres://… \
   -e ERRORLENS_SECRET_KEY=… \
   -e ERRORLENS_PUBLIC_URL=https://errors.example.com \
-  errorlenshq/errorlens:latest
+  errorlensio/errorlens:latest
 ```
 
 - `docker-compose.yml` with Postgres (+ optional Caddy for TLS).
@@ -332,7 +332,7 @@ errorlens/
 | 4 — Beyond | ✅ Partly | Transactions/spans (SDK + OTLP), performance page, trace view, cron + uptime monitors. Not done: ClickHouse adapter, ProGuard/dSYM symbolication, session replay, profiling |
 
 ### Not done / needs the owner
-- Buy **errorlens.io**; create GitHub org `errorlenshq` (`errorlens` is taken), Docker Hub `errorlenshq`, npm scope `@errorlens`, PyPI `errorlens`; then publish the SDKs and image.
+- Buy **errorlens.io**; create GitHub org `errorlens-io` (`errorlens` is taken), Docker Hub `errorlensio` (no hyphens allowed), npm scope `@errorlens`, PyPI `errorlens`; then publish the SDKs and image.
 - Stripe account, price IDs and webhook secret for the hosted tier (code is ready, untested against live Stripe).
 - External security review before offering the hosted service.
 - Load testing against the performance targets in §10.

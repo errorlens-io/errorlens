@@ -23,7 +23,7 @@ ErrorLens runs entirely on your infrastructure. It works with the error-reportin
 ## Quick start (Docker Compose)
 
 ```bash
-git clone https://github.com/errorlenshq/errorlens.git
+git clone https://github.com/errorlens-io/errorlens.git
 cd errorlens
 cp deploy/.env.example deploy/.env    # set a strong POSTGRES_PASSWORD
 docker compose -f deploy/docker-compose.yml up -d --build

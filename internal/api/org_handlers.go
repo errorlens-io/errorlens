@@ -13,9 +13,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/errorlenshq/errorlens/internal/audit"
-	"github.com/errorlenshq/errorlens/internal/auth"
-	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlens-io/errorlens/internal/audit"
+	"github.com/errorlens-io/errorlens/internal/auth"
+	"github.com/errorlens-io/errorlens/internal/db"
 )
 
 // Organization as seen by the current user.

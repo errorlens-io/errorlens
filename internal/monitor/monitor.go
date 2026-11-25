@@ -18,9 +18,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/robfig/cron/v3"
 
-	"github.com/errorlenshq/errorlens/internal/db"
-	"github.com/errorlenshq/errorlens/internal/notify"
-	"github.com/errorlenshq/errorlens/internal/queue"
+	"github.com/errorlens-io/errorlens/internal/db"
+	"github.com/errorlens-io/errorlens/internal/notify"
+	"github.com/errorlens-io/errorlens/internal/queue"
 )
 
 // Job kinds.

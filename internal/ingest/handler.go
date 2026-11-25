@@ -24,15 +24,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/errorlenshq/errorlens/internal/auth"
-	"github.com/errorlenshq/errorlens/internal/db"
-	"github.com/errorlenshq/errorlens/internal/logs"
-	"github.com/errorlenshq/errorlens/internal/monitor"
-	"github.com/errorlenshq/errorlens/internal/perf"
-	"github.com/errorlenshq/errorlens/internal/process"
-	"github.com/errorlenshq/errorlens/internal/queue"
-	"github.com/errorlenshq/errorlens/internal/scrub"
-	"github.com/errorlenshq/errorlens/internal/usage"
+	"github.com/errorlens-io/errorlens/internal/auth"
+	"github.com/errorlens-io/errorlens/internal/db"
+	"github.com/errorlens-io/errorlens/internal/logs"
+	"github.com/errorlens-io/errorlens/internal/monitor"
+	"github.com/errorlens-io/errorlens/internal/perf"
+	"github.com/errorlens-io/errorlens/internal/process"
+	"github.com/errorlens-io/errorlens/internal/queue"
+	"github.com/errorlens-io/errorlens/internal/scrub"
+	"github.com/errorlens-io/errorlens/internal/usage"
 )
 
 // Size limits (SDKs keep events well below these).

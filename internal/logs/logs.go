@@ -15,9 +15,9 @@ import (
 	collogs "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 
-	"github.com/errorlenshq/errorlens/internal/db"
-	"github.com/errorlenshq/errorlens/internal/queue"
-	"github.com/errorlenshq/errorlens/internal/scrub"
+	"github.com/errorlens-io/errorlens/internal/db"
+	"github.com/errorlens-io/errorlens/internal/queue"
+	"github.com/errorlens-io/errorlens/internal/scrub"
 )
 
 // JobKind stores a batch of logs.

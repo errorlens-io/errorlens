@@ -1,4 +1,4 @@
-module github.com/errorlenshq/errorlens
+module github.com/errorlens-io/errorlens
 
 go 1.27.1
 

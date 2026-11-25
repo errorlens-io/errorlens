@@ -18,9 +18,9 @@ import (
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 
-	"github.com/errorlenshq/errorlens/internal/db"
-	"github.com/errorlenshq/errorlens/internal/queue"
-	"github.com/errorlenshq/errorlens/internal/scrub"
+	"github.com/errorlens-io/errorlens/internal/db"
+	"github.com/errorlens-io/errorlens/internal/queue"
+	"github.com/errorlens-io/errorlens/internal/scrub"
 )
 
 // JobKind stores a batch of transactions.

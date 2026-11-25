@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/errorlenshq/errorlens/internal/crypto"
-	"github.com/errorlenshq/errorlens/internal/testutil"
+	"github.com/errorlens-io/errorlens/internal/crypto"
+	"github.com/errorlens-io/errorlens/internal/testutil"
 )
 
 func TestKeyring(t *testing.T) {

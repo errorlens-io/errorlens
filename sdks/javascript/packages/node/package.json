@@ -6,7 +6,7 @@
   "homepage": "https://errorlens.io",
   "repository": {
     "type": "git",
-    "url": "https://github.com/errorlenshq/errorlens.git",
+    "url": "https://github.com/errorlens-io/errorlens.git",
     "directory": "sdks/javascript/packages/node"
   },
   "keywords": [

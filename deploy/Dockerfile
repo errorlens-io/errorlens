@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # --- web UI ---------------------------------------------------------------
-FROM node:24-alpine AS web
+FROM --platform=$BUILDPLATFORM node:24-alpine AS web
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
@@ -9,7 +9,8 @@ COPY web/ ./
 RUN npm run build
 
 # --- Go binary --------------------------------------------------------------
-FROM golang:1.27-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
+ARG TARGETOS TARGETARCH
 ARG VERSION=dev
 ARG COMMIT=unknown
 WORKDIR /src
@@ -17,8 +18,8 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=web /src/web/dist ./web/dist
-RUN CGO_ENABLED=0 go build -trimpath \
-      -ldflags "-s -w -X github.com/errorlenshq/errorlens/internal/version.Version=${VERSION} -X github.com/errorlenshq/errorlens/internal/version.Commit=${COMMIT}" \
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
+      -ldflags "-s -w -X github.com/errorlens-io/errorlens/internal/version.Version=${VERSION} -X github.com/errorlens-io/errorlens/internal/version.Commit=${COMMIT}" \
       -o /out/errorlens ./cmd/errorlens
 
 # --- runtime: no shell, no package manager, non-root ---------------------------

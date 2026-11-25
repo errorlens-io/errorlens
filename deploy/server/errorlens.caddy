@@ -1,0 +1,31 @@
+# ErrorLens — imported by the edge Caddy through `import /config/*.caddy`.
+# The edge Caddy reads this only at start: after changing it, restart that
+# container (a ~1.5 s blip for every site it serves).
+
+www.errorlens.io {
+	redir https://errorlens.io{uri} permanent
+}
+
+errorlens.io {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options SAMEORIGIN
+		-Server
+	}
+	encode zstd gzip
+	# Source-map uploads are the largest requests.
+	request_body {
+		max_size 50MB
+	}
+	reverse_proxy {
+		dynamic a {
+			name errorlens
+			port 8080
+			refresh 5s
+		}
+		lb_try_duration 15s
+		lb_try_interval 250ms
+	}
+}

@@ -1,0 +1,56 @@
+# ErrorLens on a shared server whose :443 is held by another project's Caddy
+# (the "edge" network). ErrorLens brings its OWN Postgres; it never connects to
+# any other database on the host.
+#
+#   /srv/errorlens/docker-compose.yml   this file
+#   /srv/errorlens/.env                 POSTGRES_PASSWORD, ERRORLENS_ENCRYPTION_KEY, ...
+#   /srv/errorlens/pgdata               database files
+#   errorlens.caddy                     copied into the edge Caddy's /config
+name: errorlens
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+services:
+  errorlens-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: errorlens
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: errorlens
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U errorlens -d errorlens"]
+      interval: 5s
+      retries: 20
+    networks: [default]
+    logging: *logging
+
+  errorlens:
+    image: ${ERRORLENS_IMAGE:-errorlensio/errorlens:latest}
+    container_name: errorlens
+    restart: unless-stopped
+    depends_on:
+      errorlens-db: { condition: service_healthy }
+    environment:
+      ERRORLENS_DATABASE_URL: postgres://errorlens:${POSTGRES_PASSWORD}@errorlens-db:5432/errorlens?sslmode=disable
+      ERRORLENS_PUBLIC_URL: ${ERRORLENS_PUBLIC_URL:-https://errorlens.io}
+      ERRORLENS_ENCRYPTION_KEY: ${ERRORLENS_ENCRYPTION_KEY:-}
+      ERRORLENS_SIGNUP_ENABLED: ${ERRORLENS_SIGNUP_ENABLED:-false}
+      ERRORLENS_SMTP_HOST: ${ERRORLENS_SMTP_HOST:-}
+      ERRORLENS_SMTP_PORT: ${ERRORLENS_SMTP_PORT:-587}
+      ERRORLENS_SMTP_USERNAME: ${ERRORLENS_SMTP_USERNAME:-}
+      ERRORLENS_SMTP_PASSWORD: ${ERRORLENS_SMTP_PASSWORD:-}
+      ERRORLENS_SMTP_FROM: ${ERRORLENS_SMTP_FROM:-}
+      # Requests arrive from the edge Caddy on the docker network.
+      ERRORLENS_TRUSTED_PROXIES: 172.16.0.0/12
+    networks: [default, edge]
+    logging: *logging
+
+networks:
+  edge:
+    external: true
+    name: ${EDGE_NETWORK:?set EDGE_NETWORK in .env (the edge Caddy network)}

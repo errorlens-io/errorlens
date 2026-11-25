@@ -10,10 +10,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/errorlenshq/errorlens/internal/crypto"
-	"github.com/errorlenshq/errorlens/internal/db"
-	"github.com/errorlenshq/errorlens/internal/queue"
-	"github.com/errorlenshq/errorlens/internal/sourcemap"
+	"github.com/errorlens-io/errorlens/internal/crypto"
+	"github.com/errorlens-io/errorlens/internal/db"
+	"github.com/errorlens-io/errorlens/internal/queue"
+	"github.com/errorlens-io/errorlens/internal/sourcemap"
 )
 
 // JobKind is the queue job kind for event processing.

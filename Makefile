@@ -1,7 +1,7 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
-LDFLAGS := -s -w -X github.com/errorlenshq/errorlens/internal/version.Version=$(VERSION) \
-           -X github.com/errorlenshq/errorlens/internal/version.Commit=$(COMMIT)
+LDFLAGS := -s -w -X github.com/errorlens-io/errorlens/internal/version.Version=$(VERSION) \
+           -X github.com/errorlens-io/errorlens/internal/version.Commit=$(COMMIT)
 TEST_DB ?= postgres://postgres:postgres@localhost:5434/postgres?sslmode=disable
 
 .PHONY: all web build test test-unit lint dev-db dev-db-stop run docker clean
@@ -34,7 +34,7 @@ run: build ## Run locally against the dev database
 	ERRORLENS_DATABASE_URL="$(TEST_DB)" ./bin/errorlens serve
 
 docker:
-	docker build --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) -t errorlenshq/errorlens:$(VERSION) -f deploy/Dockerfile .
+	docker build --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) -t errorlensio/errorlens:$(VERSION) -f deploy/Dockerfile .
 
 clean:
 	rm -rf bin web/dist/assets web/dist/index.html web/dist/favicon.svg
