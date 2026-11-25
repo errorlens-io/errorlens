@@ -10,7 +10,7 @@ export function ReleasesPage({ org }: { org: string }) {
   return (
     <>
       <div className="page-head"><h1>Releases</h1></div>
-      <p className="muted">Releases appear automatically when your SDK sets <code className="mono">release</code>. Upload source maps per release with <code className="mono">rootcause sourcemaps upload</code>.</p>
+      <p className="muted">Releases appear automatically when your SDK sets <code className="mono">release</code>. Upload source maps per release with <code className="mono">errorlens sourcemaps upload</code>.</p>
       {error && <p className="error">{error}</p>}
       {releases === null ? <p className="muted">Loading…</p> : releases.length === 0 ? <Empty title="No releases yet" /> : (
         <div className="card flush">

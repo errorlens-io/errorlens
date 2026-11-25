@@ -37,35 +37,35 @@ type Stripe struct {
 	APIBase       string // overridable in tests
 }
 
-// FromEnv reads ROOTCAUSE_STRIPE_SECRET_KEY, ROOTCAUSE_STRIPE_WEBHOOK_SECRET
-// and ROOTCAUSE_STRIPE_PLANS ("team:price_123:100000,business:price_456:1000000").
+// FromEnv reads ERRORLENS_STRIPE_SECRET_KEY, ERRORLENS_STRIPE_WEBHOOK_SECRET
+// and ERRORLENS_STRIPE_PLANS ("team:price_123:100000,business:price_456:1000000").
 // It returns nil when billing is not configured.
 func FromEnv(getenv func(string) string) (*Stripe, error) {
 	if getenv == nil {
 		getenv = os.Getenv
 	}
-	key := getenv("ROOTCAUSE_STRIPE_SECRET_KEY")
+	key := getenv("ERRORLENS_STRIPE_SECRET_KEY")
 	if key == "" {
 		return nil, nil
 	}
-	s := &Stripe{SecretKey: key, WebhookSecret: getenv("ROOTCAUSE_STRIPE_WEBHOOK_SECRET"),
+	s := &Stripe{SecretKey: key, WebhookSecret: getenv("ERRORLENS_STRIPE_WEBHOOK_SECRET"),
 		HTTP: &http.Client{Timeout: 20 * time.Second}, APIBase: "https://api.stripe.com"}
 	if s.WebhookSecret == "" {
-		return nil, errors.New("ROOTCAUSE_STRIPE_WEBHOOK_SECRET is required when Stripe is enabled")
+		return nil, errors.New("ERRORLENS_STRIPE_WEBHOOK_SECRET is required when Stripe is enabled")
 	}
-	for _, spec := range strings.Split(getenv("ROOTCAUSE_STRIPE_PLANS"), ",") {
+	for _, spec := range strings.Split(getenv("ERRORLENS_STRIPE_PLANS"), ",") {
 		parts := strings.Split(strings.TrimSpace(spec), ":")
 		if len(parts) != 3 {
 			continue
 		}
 		q, err := strconv.ParseInt(parts[2], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("ROOTCAUSE_STRIPE_PLANS: bad quota in %q", spec)
+			return nil, fmt.Errorf("ERRORLENS_STRIPE_PLANS: bad quota in %q", spec)
 		}
 		s.Plans = append(s.Plans, Plan{ID: parts[0], PriceID: parts[1], Quota: q, Label: strings.ToUpper(parts[0][:1]) + parts[0][1:]})
 	}
 	if len(s.Plans) == 0 {
-		return nil, errors.New("ROOTCAUSE_STRIPE_PLANS must list at least one plan as id:price_id:monthly_events")
+		return nil, errors.New("ERRORLENS_STRIPE_PLANS must list at least one plan as id:price_id:monthly_events")
 	}
 	return s, nil
 }

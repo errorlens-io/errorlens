@@ -1,6 +1,6 @@
 # Security Policy
 
-RootCause exists to keep sensitive data private, so we take security reports seriously.
+ErrorLens exists to keep sensitive data private, so we take security reports seriously.
 
 ## Reporting a vulnerability
 
@@ -19,5 +19,5 @@ Until 1.0, only the latest release receives security fixes.
 
 - Data from one organization is visible to another organization.
 - Sensitive values reach the database despite matching an active scrubbing rule.
-- RootCause sends any data to a third party without an administrator enabling it.
+- ErrorLens sends any data to a third party without an administrator enabling it.
 - The audit log can be modified or deleted through the application.

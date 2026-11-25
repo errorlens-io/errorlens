@@ -18,20 +18,20 @@ import (
 
 // sourcemapsCmd implements:
 //
-//	rootcause sourcemaps upload --url https://errors.example.com --org acme --project web \
+//	errorlens sourcemaps upload --url https://errors.example.com --org acme --project web \
 //	  --release web@1.2.3 --url-prefix "~/static/js" ./build/static/js
 //
-// The API token is read from --token or ROOTCAUSE_AUTH_TOKEN.
+// The API token is read from --token or ERRORLENS_AUTH_TOKEN.
 func sourcemapsCmd(args []string) error {
 	if len(args) == 0 || args[0] != "upload" {
-		return errors.New("usage: rootcause sourcemaps upload [flags] <dir>")
+		return errors.New("usage: errorlens sourcemaps upload [flags] <dir>")
 	}
 	fs := flag.NewFlagSet("sourcemaps upload", flag.ContinueOnError)
-	base := fs.String("url", os.Getenv("ROOTCAUSE_URL"), "RootCause server URL (or ROOTCAUSE_URL)")
-	token := fs.String("token", os.Getenv("ROOTCAUSE_AUTH_TOKEN"), "API token (or ROOTCAUSE_AUTH_TOKEN)")
-	org := fs.String("org", os.Getenv("ROOTCAUSE_ORG"), "organization slug (or ROOTCAUSE_ORG)")
-	project := fs.String("project", os.Getenv("ROOTCAUSE_PROJECT"), "project slug (or ROOTCAUSE_PROJECT)")
-	release := fs.String("release", os.Getenv("ROOTCAUSE_RELEASE"), "release version, must match the SDK's release (or ROOTCAUSE_RELEASE)")
+	base := fs.String("url", os.Getenv("ERRORLENS_URL"), "ErrorLens server URL (or ERRORLENS_URL)")
+	token := fs.String("token", os.Getenv("ERRORLENS_AUTH_TOKEN"), "API token (or ERRORLENS_AUTH_TOKEN)")
+	org := fs.String("org", os.Getenv("ERRORLENS_ORG"), "organization slug (or ERRORLENS_ORG)")
+	project := fs.String("project", os.Getenv("ERRORLENS_PROJECT"), "project slug (or ERRORLENS_PROJECT)")
+	release := fs.String("release", os.Getenv("ERRORLENS_RELEASE"), "release version, must match the SDK's release (or ERRORLENS_RELEASE)")
 	prefix := fs.String("url-prefix", "~/", `URL path the files are served under, e.g. "~/static/js"`)
 	if err := fs.Parse(args[1:]); err != nil {
 		return err

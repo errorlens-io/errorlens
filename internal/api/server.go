@@ -1,4 +1,4 @@
-// Package api serves RootCause's HTTP endpoints: the JSON API used by the
+// Package api serves ErrorLens's HTTP endpoints: the JSON API used by the
 // web UI, health checks, and the embedded single-page app.
 package api
 
@@ -16,17 +16,17 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/rootcausehq/rootcause/internal/auth"
-	"github.com/rootcausehq/rootcause/internal/billing"
-	"github.com/rootcausehq/rootcause/internal/config"
-	"github.com/rootcausehq/rootcause/internal/crypto"
-	"github.com/rootcausehq/rootcause/internal/db"
-	"github.com/rootcausehq/rootcause/internal/ingest"
-	"github.com/rootcausehq/rootcause/internal/notify"
-	"github.com/rootcausehq/rootcause/internal/version"
+	"github.com/errorlenshq/errorlens/internal/auth"
+	"github.com/errorlenshq/errorlens/internal/billing"
+	"github.com/errorlenshq/errorlens/internal/config"
+	"github.com/errorlenshq/errorlens/internal/crypto"
+	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/ingest"
+	"github.com/errorlenshq/errorlens/internal/notify"
+	"github.com/errorlenshq/errorlens/internal/version"
 )
 
-const sessionCookie = "rootcause_session"
+const sessionCookie = "errorlens_session"
 
 // Server holds dependencies for HTTP handlers.
 type Server struct {

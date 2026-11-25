@@ -1,5 +1,5 @@
 {
-  "name": "rootcause-js-sdks",
+  "name": "errorlens-js-sdks",
   "private": true,
   "workspaces": [
     "packages/*"

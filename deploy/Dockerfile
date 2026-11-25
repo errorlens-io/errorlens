@@ -18,13 +18,13 @@ RUN go mod download
 COPY . .
 COPY --from=web /src/web/dist ./web/dist
 RUN CGO_ENABLED=0 go build -trimpath \
-      -ldflags "-s -w -X github.com/rootcausehq/rootcause/internal/version.Version=${VERSION} -X github.com/rootcausehq/rootcause/internal/version.Commit=${COMMIT}" \
-      -o /out/rootcause ./cmd/rootcause
+      -ldflags "-s -w -X github.com/errorlenshq/errorlens/internal/version.Version=${VERSION} -X github.com/errorlenshq/errorlens/internal/version.Commit=${COMMIT}" \
+      -o /out/errorlens ./cmd/errorlens
 
 # --- runtime: no shell, no package manager, non-root ---------------------------
 FROM gcr.io/distroless/static-debian12:nonroot
-COPY --from=build /out/rootcause /usr/local/bin/rootcause
+COPY --from=build /out/errorlens /usr/local/bin/errorlens
 USER nonroot:nonroot
 EXPOSE 8080
-ENTRYPOINT ["/usr/local/bin/rootcause"]
+ENTRYPOINT ["/usr/local/bin/errorlens"]
 CMD ["serve"]

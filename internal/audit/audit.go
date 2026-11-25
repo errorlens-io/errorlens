@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// Actions recorded by RootCause.
+// Actions recorded by ErrorLens.
 const (
 	ActionSetup         = "instance.setup"
 	ActionLogin         = "user.login"

@@ -1,21 +1,21 @@
--- RootCause initial schema.
+-- ErrorLens initial schema.
 --
 -- Tenant isolation: every tenant-owned table carries org_id and has Row-Level
 -- Security enabled. Application requests run as the NOLOGIN role
--- `rootcause_app` (via SET LOCAL ROLE) with `app.org_id` / `app.user_id` set,
+-- `errorlens_app` (via SET LOCAL ROLE) with `app.org_id` / `app.user_id` set,
 -- so a bug in application code cannot read another organization's rows.
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'rootcause_app') THEN
-        CREATE ROLE rootcause_app NOLOGIN NOSUPERUSER NOBYPASSRLS;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'errorlens_app') THEN
+        CREATE ROLE errorlens_app NOLOGIN NOSUPERUSER NOBYPASSRLS;
     END IF;
 END
 $$;
 
 DO $$
 BEGIN
-    EXECUTE format('GRANT rootcause_app TO %I', current_user);
+    EXECUTE format('GRANT errorlens_app TO %I', current_user);
 EXCEPTION WHEN OTHERS THEN
     -- Superusers can always SET ROLE; ignore "already a member" and similar.
     NULL;
@@ -147,7 +147,7 @@ CREATE POLICY audit_log_insert ON audit_log FOR INSERT
 
 -- Grants for the application role ----------------------------------------------
 
-GRANT USAGE ON SCHEMA public TO rootcause_app;
+GRANT USAGE ON SCHEMA public TO errorlens_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON users, sessions, organizations, memberships,
-    projects, project_keys TO rootcause_app;
-GRANT SELECT, INSERT ON audit_log TO rootcause_app;
+    projects, project_keys TO errorlens_app;
+GRANT SELECT, INSERT ON audit_log TO errorlens_app;

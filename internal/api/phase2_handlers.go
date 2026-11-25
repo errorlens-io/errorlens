@@ -12,13 +12,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/rootcausehq/rootcause/internal/audit"
-	"github.com/rootcausehq/rootcause/internal/auth"
+	"github.com/errorlenshq/errorlens/internal/audit"
+	"github.com/errorlenshq/errorlens/internal/auth"
 )
 
 // --- API tokens ------------------------------------------------------------------------
 
-const tokenPrefix = "rc_"
+const tokenPrefix = "el_"
 
 // APIToken as listed (the secret is only returned once, on creation).
 type APIToken struct {

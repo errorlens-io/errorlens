@@ -20,7 +20,7 @@ CREATE TABLE logs_default PARTITION OF logs DEFAULT;
 
 ALTER TABLE logs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY logs_tenant ON logs USING (org_id = app_org_id()) WITH CHECK (org_id = app_org_id());
-GRANT SELECT, INSERT, DELETE ON logs TO rootcause_app;
+GRANT SELECT, INSERT, DELETE ON logs TO errorlens_app;
 
 CREATE TABLE releases (
     id          bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -34,7 +34,7 @@ CREATE TABLE releases (
 );
 ALTER TABLE releases ENABLE ROW LEVEL SECURITY;
 CREATE POLICY releases_tenant ON releases USING (org_id = app_org_id()) WITH CHECK (org_id = app_org_id());
-GRANT SELECT, INSERT, UPDATE, DELETE ON releases TO rootcause_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON releases TO errorlens_app;
 
 -- Uploaded release files (JavaScript source maps and minified sources).
 CREATE TABLE artifacts (
@@ -50,7 +50,7 @@ CREATE TABLE artifacts (
 );
 ALTER TABLE artifacts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY artifacts_tenant ON artifacts USING (org_id = app_org_id()) WITH CHECK (org_id = app_org_id());
-GRANT SELECT, INSERT, UPDATE, DELETE ON artifacts TO rootcause_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON artifacts TO errorlens_app;
 
 -- Organization API tokens (CLI uploads, automation).
 CREATE TABLE api_tokens (
@@ -66,7 +66,7 @@ CREATE TABLE api_tokens (
 );
 ALTER TABLE api_tokens ENABLE ROW LEVEL SECURITY;
 CREATE POLICY api_tokens_tenant ON api_tokens USING (org_id = app_org_id()) WITH CHECK (org_id = app_org_id());
-GRANT SELECT, INSERT, UPDATE, DELETE ON api_tokens TO rootcause_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON api_tokens TO errorlens_app;
 
 -- Per-organization data encryption keys, wrapped by the server master key.
 CREATE TABLE org_keys (

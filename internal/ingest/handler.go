@@ -24,15 +24,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/rootcausehq/rootcause/internal/auth"
-	"github.com/rootcausehq/rootcause/internal/db"
-	"github.com/rootcausehq/rootcause/internal/logs"
-	"github.com/rootcausehq/rootcause/internal/monitor"
-	"github.com/rootcausehq/rootcause/internal/perf"
-	"github.com/rootcausehq/rootcause/internal/process"
-	"github.com/rootcausehq/rootcause/internal/queue"
-	"github.com/rootcausehq/rootcause/internal/scrub"
-	"github.com/rootcausehq/rootcause/internal/usage"
+	"github.com/errorlenshq/errorlens/internal/auth"
+	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/logs"
+	"github.com/errorlenshq/errorlens/internal/monitor"
+	"github.com/errorlenshq/errorlens/internal/perf"
+	"github.com/errorlenshq/errorlens/internal/process"
+	"github.com/errorlenshq/errorlens/internal/queue"
+	"github.com/errorlenshq/errorlens/internal/scrub"
+	"github.com/errorlenshq/errorlens/internal/usage"
 )
 
 // Size limits (SDKs keep events well below these).
@@ -95,7 +95,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Post("/api/{projectID}/envelope/", h.envelope)
 		r.Post("/api/{projectID}/store/", h.store)
 		// OpenTelemetry logs (OTLP/HTTP, protobuf or JSON). Authenticate with the
-		// DSN public key: "Authorization: Bearer <key>" or "x-rootcause-key: <key>".
+		// DSN public key: "Authorization: Bearer <key>" or "x-errorlens-key: <key>".
 		r.Options("/v1/logs", noContent)
 		r.Post("/v1/logs", h.otlpLogs)
 		r.Options("/v1/traces", noContent)

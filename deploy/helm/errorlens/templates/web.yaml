@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "rootcause.fullname" . }}-web
-  labels: {{- include "rootcause.labels" . | nindent 4 }}
+  name: {{ include "errorlens.fullname" . }}-web
+  labels: {{- include "errorlens.labels" . | nindent 4 }}
     app.kubernetes.io/component: web
 spec:
   replicas: {{ .Values.web.replicas }}
   selector:
-    matchLabels: {{- include "rootcause.labels" . | nindent 6 }}
+    matchLabels: {{- include "errorlens.labels" . | nindent 6 }}
       app.kubernetes.io/component: web
   template:
     metadata:
-      labels: {{- include "rootcause.labels" . | nindent 8 }}
+      labels: {{- include "errorlens.labels" . | nindent 8 }}
         app.kubernetes.io/component: web
     spec:
       securityContext: { runAsNonRoot: true }
       containers:
-        - name: rootcause
-          image: {{ include "rootcause.image" . }}
+        - name: errorlens
+          image: {{ include "errorlens.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args: ["serve", "--no-migrate", "--role=web"]
-          env: {{- include "rootcause.env" . | nindent 12 }}
+          env: {{- include "errorlens.env" . | nindent 12 }}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -37,11 +37,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "rootcause.fullname" . }}
-  labels: {{- include "rootcause.labels" . | nindent 4 }}
+  name: {{ include "errorlens.fullname" . }}
+  labels: {{- include "errorlens.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
-  selector: {{- include "rootcause.labels" . | nindent 4 }}
+  selector: {{- include "errorlens.labels" . | nindent 4 }}
     app.kubernetes.io/component: web
   ports:
     - port: {{ .Values.service.port }}

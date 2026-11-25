@@ -18,9 +18,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/robfig/cron/v3"
 
-	"github.com/rootcausehq/rootcause/internal/db"
-	"github.com/rootcausehq/rootcause/internal/notify"
-	"github.com/rootcausehq/rootcause/internal/queue"
+	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/notify"
+	"github.com/errorlenshq/errorlens/internal/queue"
 )
 
 // Job kinds.
@@ -126,7 +126,7 @@ func (s *Service) RecordCheckIn(ctx context.Context, org, project uuid.UUID, c C
 			project, slug).Scan(&id, &schedule, &tz, &status, &name)
 		if errors.Is(err, pgx.ErrNoRows) {
 			if c.Config == nil {
-				return fmt.Errorf("no monitor %q; create it in RootCause or send monitor_config", slug)
+				return fmt.Errorf("no monitor %q; create it in ErrorLens or send monitor_config", slug)
 			}
 			sched, err := c.Config.schedule()
 			if err != nil {
@@ -416,7 +416,7 @@ func (s *Service) probe(ctx context.Context, target string, timeout time.Duratio
 	if err != nil {
 		return "error", "invalid URL", 0
 	}
-	req.Header.Set("User-Agent", "RootCause-Uptime/1.0")
+	req.Header.Set("User-Agent", "ErrorLens-Uptime/1.0")
 	resp, err := s.HTTP.Do(req)
 	ms = float64(time.Since(start).Microseconds()) / 1000
 	if err != nil {

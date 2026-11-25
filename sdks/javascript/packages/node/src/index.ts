@@ -1,19 +1,19 @@
 /**
- * RootCause SDK for Node.js.
+ * ErrorLens SDK for Node.js.
  *
  * Event capture and transport come from the MIT-licensed open-source error
- * SDK this package builds on; this module adds RootCause defaults and a
- * RootCause-branded API.
+ * SDK this package builds on; this module adds ErrorLens defaults and a
+ * ErrorLens-branded API.
  */
 import * as core from "@sentry/node";
 
-export const SDK_NAME = "rootcause.javascript.node";
+export const SDK_NAME = "errorlens.javascript.node";
 export const SDK_VERSION = "0.1.0";
 
 type CoreOptions = NonNullable<Parameters<typeof core.init>[0]>;
 type CoreEvent = Parameters<NonNullable<CoreOptions["beforeSend"]>>[0];
 
-export type RootCauseOptions = CoreOptions;
+export type ErrorLensOptions = CoreOptions;
 
 declare const process: { env: Record<string, string | undefined> } | undefined;
 
@@ -25,25 +25,25 @@ function brand(event: CoreEvent): CoreEvent {
   event.sdk = {
     name: SDK_NAME,
     version: SDK_VERSION,
-    packages: [{ name: "npm:@rootcausehq/node", version: SDK_VERSION }],
+    packages: [{ name: "npm:@errorlens/node", version: SDK_VERSION }],
   };
   return event;
 }
 
 /**
- * Start reporting errors to RootCause. dsn, release and environment default to
- * ROOTCAUSE_DSN, ROOTCAUSE_RELEASE and ROOTCAUSE_ENVIRONMENT. Without a DSN the
+ * Start reporting errors to ErrorLens. dsn, release and environment default to
+ * ERRORLENS_DSN, ERRORLENS_RELEASE and ERRORLENS_ENVIRONMENT. Without a DSN the
  * SDK does nothing, so it is safe to call in tests and local development.
  */
-export function init(options: RootCauseOptions = {}) {
+export function init(options: ErrorLensOptions = {}) {
   const userBeforeSend = options.beforeSend;
   return core.init({
     ...options,
-    // Identifies events as coming from the RootCause SDK.
-    _metadata: { sdk: { name: SDK_NAME, version: SDK_VERSION, packages: [{ name: "npm:@rootcausehq/node", version: SDK_VERSION }] } },
-    dsn: options.dsn ?? env("ROOTCAUSE_DSN"),
-    release: options.release ?? env("ROOTCAUSE_RELEASE"),
-    environment: options.environment ?? env("ROOTCAUSE_ENVIRONMENT"),
+    // Identifies events as coming from the ErrorLens SDK.
+    _metadata: { sdk: { name: SDK_NAME, version: SDK_VERSION, packages: [{ name: "npm:@errorlens/node", version: SDK_VERSION }] } },
+    dsn: options.dsn ?? env("ERRORLENS_DSN"),
+    release: options.release ?? env("ERRORLENS_RELEASE"),
+    environment: options.environment ?? env("ERRORLENS_ENVIRONMENT"),
     beforeSend: (event, hint) => {
       const e = brand(event as CoreEvent);
       return userBeforeSend ? userBeforeSend(e as never, hint) : e;

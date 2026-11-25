@@ -14,10 +14,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/rootcausehq/rootcause/internal/db"
-	"github.com/rootcausehq/rootcause/internal/notify"
-	"github.com/rootcausehq/rootcause/internal/process"
-	"github.com/rootcausehq/rootcause/internal/queue"
+	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/notify"
+	"github.com/errorlenshq/errorlens/internal/process"
+	"github.com/errorlenshq/errorlens/internal/queue"
 )
 
 // Job kinds.

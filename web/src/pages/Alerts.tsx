@@ -126,7 +126,7 @@ function ChannelForm({ org, onSaved }: { org: string; onSaved: () => void }) {
       </select>
       <input aria-label="Name" placeholder="Name, e.g. #oncall" required value={name} onChange={(e) => setName(e.target.value)} />
       <input aria-label={kind === "email" ? "Email addresses" : "URL"} required value={target} onChange={(e) => setTarget(e.target.value)}
-        placeholder={kind === "email" ? "ops@example.com, dev@example.com" : kind === "slack" ? "Slack incoming webhook URL" : kind === "discord" ? "Discord webhook URL" : "https://example.com/hooks/rootcause"} />
+        placeholder={kind === "email" ? "ops@example.com, dev@example.com" : kind === "slack" ? "Slack incoming webhook URL" : kind === "discord" ? "Discord webhook URL" : "https://example.com/hooks/errorlens"} />
       {kind === "webhook" && <input aria-label="Signing secret" placeholder="Signing secret (optional)" value={secret} onChange={(e) => setSecret(e.target.value)} />}
       <button>Add destination</button>
       {error && <p className="error">{error}</p>}

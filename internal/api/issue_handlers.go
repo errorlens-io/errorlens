@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/rootcausehq/rootcause/internal/audit"
+	"github.com/errorlenshq/errorlens/internal/audit"
 )
 
 // Issue is a group of similar events.
@@ -385,7 +385,7 @@ func (s *Server) getEvent(w http.ResponseWriter, r *http.Request) {
 		}
 		if sealed != nil {
 			if s.keyring == nil {
-				return errors.New("event is encrypted but ROOTCAUSE_ENCRYPTION_KEY is not set")
+				return errors.New("event is encrypted but ERRORLENS_ENCRYPTION_KEY is not set")
 			}
 			pt, err := s.keyring.Open(ctx, orgFrom(ctx).ID, sealed, eid[:])
 			if err != nil {

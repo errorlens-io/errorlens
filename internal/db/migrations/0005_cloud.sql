@@ -17,7 +17,7 @@ CREATE TABLE usage_daily (
 );
 ALTER TABLE usage_daily ENABLE ROW LEVEL SECURITY;
 CREATE POLICY usage_daily_tenant ON usage_daily FOR SELECT USING (org_id = app_org_id());
-GRANT SELECT ON usage_daily TO rootcause_app;
+GRANT SELECT ON usage_daily TO errorlens_app;
 
 ALTER TABLE users
     ADD COLUMN email_verified_at timestamptz,

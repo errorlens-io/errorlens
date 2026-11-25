@@ -1,0 +1,8 @@
+apiVersion: v2
+name: errorlens
+description: ErrorLens — open-source, self-hosted error and log tracking
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://errorlens.io
+sources: ["https://github.com/errorlenshq/errorlens"]

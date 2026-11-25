@@ -1,8 +1,8 @@
-# RootCause
+# ErrorLens
 
 **Open-source, self-hosted error tracking, performance monitoring and logs. Your errors, your servers, your eyes only.**
 
-RootCause runs entirely on your infrastructure. It works with the error-reporting SDKs you already use
+ErrorLens runs entirely on your infrastructure. It works with the error-reporting SDKs you already use
 (just change the DSN) and with OpenTelemetry, and it is designed so sensitive data is scrubbed
 **before** it is ever written to disk.
 
@@ -16,45 +16,45 @@ RootCause runs entirely on your infrastructure. It works with the error-reportin
 | **Logs** | From SDK loggers or OpenTelemetry · search, severity filter, trace filter, live tail |
 | **Monitors** | Uptime checks for URLs · cron monitors with missed-run and timeout detection |
 | **Alerts** | New issue, regression, spike and monitor alerts to email, Slack, Discord or signed webhooks |
-| **JavaScript** | Source maps per release (`rootcause sourcemaps upload`) |
+| **JavaScript** | Source maps per release (`errorlens sourcemaps upload`) |
 | **Teams** | Organizations, projects, roles (owner / admin / member / viewer), invitations, API tokens, 2FA, OIDC single sign-on |
 | **Hosting** | One container + Postgres · Docker Compose and Helm · web/worker roles · multi-tenant with Postgres Row-Level Security · sign-up, quotas, usage and Stripe billing hooks for running a hosted service |
 
 ## Quick start (Docker Compose)
 
 ```bash
-git clone https://github.com/rootcausehq/rootcause.git
-cd rootcause
+git clone https://github.com/errorlenshq/errorlens.git
+cd errorlens
 cp deploy/.env.example deploy/.env    # set a strong POSTGRES_PASSWORD
 docker compose -f deploy/docker-compose.yml up -d --build
 ```
 
 Open <http://localhost:8080>, create the first admin account, then create a project to get its DSN.
-To see RootCause with data right away:
+To see ErrorLens with data right away:
 
 ```bash
-docker compose -f deploy/docker-compose.yml exec rootcause rootcause demo --dsn "<your project DSN>"
+docker compose -f deploy/docker-compose.yml exec errorlens errorlens demo --dsn "<your project DSN>"
 ```
 
 ## Sending data
 
-**Python**: `pip install rootcausehq`
+**Python**: `pip install errorlens`
 
 ```python
-import rootcausehq
-rootcausehq.init(dsn="https://<key>@errors.example.com/1", release="app@1.0.0", environment="production")
+import errorlens
+errorlens.init(dsn="https://<key>@errors.example.com/1", release="app@1.0.0", environment="production")
 ```
 
-**Node.js**: `npm install @rootcausehq/node` · **Browser**: `npm install @rootcausehq/browser`
+**Node.js**: `npm install @errorlens/node` · **Browser**: `npm install @errorlens/browser`
 
 ```js
-import * as RootCause from "@rootcausehq/node";
-RootCause.init({ dsn: "https://<key>@errors.example.com/1", release: "app@1.0.0" });
+import * as ErrorLens from "@errorlens/node";
+ErrorLens.init({ dsn: "https://<key>@errors.example.com/1", release: "app@1.0.0" });
 ```
 
 Other languages: any client that speaks the standard error-envelope protocol works with the DSN.
 
-**OpenTelemetry**: point an OTLP/HTTP exporter (protobuf or JSON) at RootCause with the DSN public key.
+**OpenTelemetry**: point an OTLP/HTTP exporter (protobuf or JSON) at ErrorLens with the DSN public key.
 Traces go to `/v1/traces`, logs to `/v1/logs`.
 
 ```bash
@@ -71,7 +71,7 @@ curl -fsS "https://errors.example.com/api/1/monitors/nightly-backup/checkin?key=
 **Source maps**: create an API token (Settings → API tokens), then in CI:
 
 ```bash
-rootcause sourcemaps upload --url https://errors.example.com --token "$ROOTCAUSE_AUTH_TOKEN" \
+errorlens sourcemaps upload --url https://errors.example.com --token "$ERRORLENS_AUTH_TOKEN" \
   --org acme --project web --release web@1.2.3 --url-prefix "~/static/js" ./build/static/js
 ```
 
@@ -79,30 +79,30 @@ rootcause sourcemaps upload --url https://errors.example.com --token "$ROOTCAUSE
 
 | Variable | Default | Description |
 |---|---|---|
-| `ROOTCAUSE_DATABASE_URL` | (required) | Postgres connection URL |
-| `ROOTCAUSE_PUBLIC_URL` | `http://localhost:8080` | External URL; used in DSNs and links. Use `https://` in production |
-| `ROOTCAUSE_LISTEN_ADDR` | `:8080` | Listen address |
-| `ROOTCAUSE_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
-| `ROOTCAUSE_SESSION_TTL` | `336h` | Login session lifetime |
-| `ROOTCAUSE_TRUSTED_PROXIES` | | Proxy IPs/CIDRs whose `X-Forwarded-For` is trusted |
-| `ROOTCAUSE_ENCRYPTION_KEY` | | Base64 32-byte key; encrypts stored event payloads (`openssl rand -base64 32`). Back it up |
-| `ROOTCAUSE_SMTP_HOST` / `_PORT` / `_USERNAME` / `_PASSWORD` / `_FROM` | | Outgoing email for alerts, invitations, password resets |
-| `ROOTCAUSE_ALLOW_PRIVATE_WEBHOOKS` | `false` | Allow alert webhooks and uptime checks to reach private addresses |
-| `ROOTCAUSE_OIDC_ISSUER` / `_CLIENT_ID` / `_CLIENT_SECRET` / `_NAME` | | Single sign-on with any OpenID Connect provider |
-| `ROOTCAUSE_OIDC_AUTO_JOIN_ORG` / `_DEFAULT_ROLE` / `_ALLOWED_DOMAINS` | | Let SSO users from allowed domains join an organization automatically |
-| `ROOTCAUSE_SIGNUP_ENABLED` | `false` | Hosted mode: anyone can create an account and organization |
-| `ROOTCAUSE_FREE_EVENT_QUOTA` | `5000` | Monthly events for organizations created by sign-up |
-| `ROOTCAUSE_STRIPE_SECRET_KEY` / `_WEBHOOK_SECRET` / `_PLANS` | | Hosted billing; plans as `id:price_id:monthly_events,...`; webhook at `/webhooks/stripe` |
+| `ERRORLENS_DATABASE_URL` | (required) | Postgres connection URL |
+| `ERRORLENS_PUBLIC_URL` | `http://localhost:8080` | External URL; used in DSNs and links. Use `https://` in production |
+| `ERRORLENS_LISTEN_ADDR` | `:8080` | Listen address |
+| `ERRORLENS_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+| `ERRORLENS_SESSION_TTL` | `336h` | Login session lifetime |
+| `ERRORLENS_TRUSTED_PROXIES` | | Proxy IPs/CIDRs whose `X-Forwarded-For` is trusted |
+| `ERRORLENS_ENCRYPTION_KEY` | | Base64 32-byte key; encrypts stored event payloads (`openssl rand -base64 32`). Back it up |
+| `ERRORLENS_SMTP_HOST` / `_PORT` / `_USERNAME` / `_PASSWORD` / `_FROM` | | Outgoing email for alerts, invitations, password resets |
+| `ERRORLENS_ALLOW_PRIVATE_WEBHOOKS` | `false` | Allow alert webhooks and uptime checks to reach private addresses |
+| `ERRORLENS_OIDC_ISSUER` / `_CLIENT_ID` / `_CLIENT_SECRET` / `_NAME` | | Single sign-on with any OpenID Connect provider |
+| `ERRORLENS_OIDC_AUTO_JOIN_ORG` / `_DEFAULT_ROLE` / `_ALLOWED_DOMAINS` | | Let SSO users from allowed domains join an organization automatically |
+| `ERRORLENS_SIGNUP_ENABLED` | `false` | Hosted mode: anyone can create an account and organization |
+| `ERRORLENS_FREE_EVENT_QUOTA` | `5000` | Monthly events for organizations created by sign-up |
+| `ERRORLENS_STRIPE_SECRET_KEY` / `_WEBHOOK_SECRET` / `_PLANS` | | Hosted billing; plans as `id:price_id:monthly_events,...`; webhook at `/webhooks/stripe` |
 
-Commands: `rootcause serve [--role=all|web|worker] [--no-migrate]`, `rootcause migrate`,
-`rootcause sourcemaps upload`, `rootcause demo`, `rootcause version`.
+Commands: `errorlens serve [--role=all|web|worker] [--no-migrate]`, `errorlens migrate`,
+`errorlens sourcemaps upload`, `errorlens demo`, `errorlens version`.
 
 ## Kubernetes
 
 ```bash
-helm install rootcause deploy/helm/rootcause \
+helm install errorlens deploy/helm/errorlens \
   --set publicURL=https://errors.example.com \
-  --set database.url='postgres://user:pass@db:5432/rootcause?sslmode=require'
+  --set database.url='postgres://user:pass@db:5432/errorlens?sslmode=require'
 ```
 
 The chart runs migrations as a pre-upgrade job, then separate web and worker deployments.

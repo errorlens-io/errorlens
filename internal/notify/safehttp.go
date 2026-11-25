@@ -79,7 +79,7 @@ func post(ctx context.Context, c *http.Client, url, contentType string, body []b
 		return err
 	}
 	req.Header.Set("Content-Type", contentType)
-	req.Header.Set("User-Agent", "RootCause-Alerts/1.0")
+	req.Header.Set("User-Agent", "ErrorLens-Alerts/1.0")
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}

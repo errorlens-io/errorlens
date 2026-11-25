@@ -79,7 +79,7 @@ func CheckPassword(encoded, pw string) (bool, error) {
 
 // dummyHash is checked against when a user does not exist, so login timing
 // does not reveal which emails are registered.
-var dummyHash, _ = HashPassword("rootcause-dummy-password")
+var dummyHash, _ = HashPassword("errorlens-dummy-password")
 
 // CheckDummy burns the same CPU as a real password check.
 func CheckDummy(pw string) { _, _ = CheckPassword(dummyHash, pw) }

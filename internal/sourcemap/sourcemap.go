@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/rootcausehq/rootcause/internal/db"
+	"github.com/errorlenshq/errorlens/internal/db"
 )
 
 // Resolver loads artifacts and maps frames. Parsed maps are cached briefly.

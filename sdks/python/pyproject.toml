@@ -3,14 +3,14 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "rootcausehq"
+name = "errorlens"
 dynamic = ["version"]
-description = "Python SDK for RootCause, the open-source, self-hosted error tracker."
+description = "Python SDK for ErrorLens, the open-source, self-hosted error tracker."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
-authors = [{ name = "RootCause contributors" }]
-keywords = ["error tracking", "exceptions", "monitoring", "self-hosted", "rootcause"]
+authors = [{ name = "ErrorLens contributors" }]
+keywords = ["error tracking", "exceptions", "monitoring", "self-hosted", "errorlens"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -21,11 +21,11 @@ classifiers = [
 dependencies = ["sentry-sdk>=2.0,<4"]
 
 [project.urls]
-Homepage = "https://rootcause.sh"
-Source = "https://github.com/rootcausehq/rootcause"
+Homepage = "https://errorlens.io"
+Source = "https://github.com/errorlenshq/errorlens"
 
 [tool.hatch.version]
-path = "src/rootcausehq/_version.py"
+path = "src/errorlens/_version.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/rootcausehq"]
+packages = ["src/errorlens"]

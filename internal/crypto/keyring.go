@@ -19,7 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/rootcausehq/rootcause/internal/db"
+	"github.com/errorlenshq/errorlens/internal/db"
 )
 
 const version byte = 1
@@ -39,7 +39,7 @@ func ParseMasterKey(b64 string) ([]byte, error) {
 	}
 	k, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil || len(k) != 32 {
-		return nil, errors.New("ROOTCAUSE_ENCRYPTION_KEY must be 32 random bytes, base64-encoded (e.g. `openssl rand -base64 32`)")
+		return nil, errors.New("ERRORLENS_ENCRYPTION_KEY must be 32 random bytes, base64-encoded (e.g. `openssl rand -base64 32`)")
 	}
 	return k, nil
 }
@@ -113,7 +113,7 @@ func (k *Keyring) dek(ctx context.Context, org uuid.UUID) (cipher.AEAD, error) {
 	}
 	raw, err := open(k.kek, wrapped, org[:])
 	if err != nil {
-		return nil, fmt.Errorf("unwrap organization key (wrong ROOTCAUSE_ENCRYPTION_KEY?): %w", err)
+		return nil, fmt.Errorf("unwrap organization key (wrong ERRORLENS_ENCRYPTION_KEY?): %w", err)
 	}
 	if a, err = newAEAD(raw); err != nil {
 		return nil, err

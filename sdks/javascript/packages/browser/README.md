@@ -1,23 +1,23 @@
-# @rootcausehq/browser
+# @errorlens/browser
 
-Report errors from browser apps to your own [RootCause](https://rootcause.sh) server.
+Report errors from browser apps to your own [ErrorLens](https://errorlens.io) server.
 
 ```bash
-npm install @rootcausehq/browser
+npm install @errorlens/browser
 ```
 
 ```js
-import * as RootCause from "@rootcausehq/browser";
+import * as ErrorLens from "@errorlens/browser";
 
-RootCause.init({
-  dsn: "https://<key>@errors.example.com/1", // from your RootCause project page
+ErrorLens.init({
+  dsn: "https://<key>@errors.example.com/1", // from your ErrorLens project page
   release: "my-app@1.0.0",
   environment: "production",
 });
 ```
 
 Uncaught errors and unhandled promise rejections are reported automatically.
-Use `RootCause.captureException(err)` / `RootCause.captureMessage(msg)` to report manually and
-`RootCause.setUser({ id })` to attach the signed-in user.
+Use `ErrorLens.captureException(err)` / `ErrorLens.captureMessage(msg)` to report manually and
+`ErrorLens.setUser({ id })` to attach the signed-in user.
 
 License: MIT.

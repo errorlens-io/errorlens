@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rootcausehq/rootcause/internal/config"
+	"github.com/errorlenshq/errorlens/internal/config"
 )
 
 // Message is a rendered alert.
@@ -55,7 +55,7 @@ type Sender struct {
 }
 
 // ErrEmailDisabled is returned when SMTP is not configured.
-var ErrEmailDisabled = errors.New("email is not configured on this server (set ROOTCAUSE_SMTP_HOST)")
+var ErrEmailDisabled = errors.New("email is not configured on this server (set ERRORLENS_SMTP_HOST)")
 
 func bytesReader(b []byte) io.Reader { return bytes.NewReader(b) }
 
@@ -68,7 +68,7 @@ func (s *Sender) Send(ctx context.Context, ch Channel, m Message) error {
 		if ch.Config.Secret != "" {
 			mac := hmac.New(sha256.New, []byte(ch.Config.Secret))
 			mac.Write(body)
-			headers["X-RootCause-Signature"] = "sha256=" + hex.EncodeToString(mac.Sum(nil))
+			headers["X-ErrorLens-Signature"] = "sha256=" + hex.EncodeToString(mac.Sum(nil))
 		}
 		return post(ctx, s.HTTP, ch.Config.URL, "application/json", body, headers)
 	case "slack":

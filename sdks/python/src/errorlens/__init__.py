@@ -1,9 +1,9 @@
-"""RootCause Python SDK.
+"""ErrorLens Python SDK.
 
-Reports errors to a self-hosted RootCause server. Event capture and transport
+Reports errors to a self-hosted ErrorLens server. Event capture and transport
 are provided by the MIT-licensed open-source error SDK this package builds on;
-this module adds RootCause defaults (privacy-first, quiet console) and a
-RootCause-branded API.
+this module adds ErrorLens defaults (privacy-first, quiet console) and a
+ErrorLens-branded API.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import os
 from typing import Any, Callable, Optional
 
 # The underlying library prints setup hints mentioning its own product to the
-# console. RootCause users should never see those.
+# console. ErrorLens users should never see those.
 os.environ.setdefault("SENTRY_AGENT_HINTS", "0")
 
 import sentry_sdk as _impl  # noqa: E402
@@ -20,7 +20,7 @@ from sentry_sdk import consts as _consts  # noqa: E402
 
 from ._version import __version__  # noqa: E402
 
-SDK_NAME = "rootcause.python"
+SDK_NAME = "errorlens.python"
 
 __all__ = [
     "__version__",
@@ -52,7 +52,7 @@ def _supported(option: str) -> bool:
 
 
 def _brand(user_hook: Optional[BeforeSend]) -> BeforeSend:
-    """Wraps before_send so stored events identify this SDK as RootCause."""
+    """Wraps before_send so stored events identify this SDK as ErrorLens."""
 
     def hook(event: Event, hint: Hint) -> Optional[Event]:
         sdk = event.get("sdk") or {}
@@ -60,7 +60,7 @@ def _brand(user_hook: Optional[BeforeSend]) -> BeforeSend:
         sdk["version"] = __version__
         # Report our package plus the core library version under a neutral name.
         sdk["packages"] = [
-            {"name": "pypi:rootcausehq", "version": __version__},
+            {"name": "pypi:errorlens", "version": __version__},
             {"name": "pypi:core", "version": getattr(_impl, "VERSION", "")},
         ]
         event["sdk"] = sdk
@@ -77,23 +77,23 @@ def init(
     before_send: Optional[BeforeSend] = None,
     **options: Any,
 ) -> None:
-    """Start reporting errors to RootCause.
+    """Start reporting errors to ErrorLens.
 
-    dsn, release and environment default to the ROOTCAUSE_DSN,
-    ROOTCAUSE_RELEASE and ROOTCAUSE_ENVIRONMENT environment variables. With no
+    dsn, release and environment default to the ERRORLENS_DSN,
+    ERRORLENS_RELEASE and ERRORLENS_ENVIRONMENT environment variables. With no
     DSN the SDK is a no-op, so it is safe to call in tests and local dev.
 
     Any other keyword argument is passed to the underlying client; options it
     does not support are ignored rather than raising.
     """
     opts: dict = {
-        "dsn": dsn or os.environ.get("ROOTCAUSE_DSN") or None,
-        "release": release or os.environ.get("ROOTCAUSE_RELEASE") or None,
-        "environment": environment or os.environ.get("ROOTCAUSE_ENVIRONMENT") or None,
+        "dsn": dsn or os.environ.get("ERRORLENS_DSN") or None,
+        "release": release or os.environ.get("ERRORLENS_RELEASE") or None,
+        "environment": environment or os.environ.get("ERRORLENS_ENVIRONMENT") or None,
         "before_send": _brand(before_send),
         # Privacy-first defaults (callers may override).
         "send_default_pii": False,
-        # RootCause does not ingest performance data yet.
+        # ErrorLens does not ingest performance data yet.
         "traces_sample_rate": None,
     }
     opts.update(options)
@@ -112,7 +112,7 @@ def _export(name: str):
     if fn is None:
 
         def missing(*_a: Any, **_k: Any) -> None:
-            raise NotImplementedError(f"rootcausehq.{name} is not available with the installed core library")
+            raise NotImplementedError(f"errorlens.{name} is not available with the installed core library")
 
         return missing
     return fn

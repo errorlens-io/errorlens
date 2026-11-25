@@ -2,8 +2,8 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "rootcause.fullname" . }}-migrate-{{ .Release.Revision }}
-  labels: {{- include "rootcause.labels" . | nindent 4 }}
+  name: {{ include "errorlens.fullname" . }}-migrate-{{ .Release.Revision }}
+  labels: {{- include "errorlens.labels" . | nindent 4 }}
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
@@ -15,6 +15,6 @@ spec:
       securityContext: { runAsNonRoot: true }
       containers:
         - name: migrate
-          image: {{ include "rootcause.image" . }}
+          image: {{ include "errorlens.image" . }}
           args: ["migrate"]
-          env: {{- include "rootcause.env" . | nindent 12 }}
+          env: {{- include "errorlens.env" . | nindent 12 }}

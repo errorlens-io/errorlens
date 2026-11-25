@@ -4,13 +4,13 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/rootcausehq/rootcause/internal/api"
-	"github.com/rootcausehq/rootcause/internal/config"
-	"github.com/rootcausehq/rootcause/internal/db"
-	"github.com/rootcausehq/rootcause/internal/monitor"
-	"github.com/rootcausehq/rootcause/internal/notify"
-	"github.com/rootcausehq/rootcause/internal/perf"
-	"github.com/rootcausehq/rootcause/internal/queue"
+	"github.com/errorlenshq/errorlens/internal/api"
+	"github.com/errorlenshq/errorlens/internal/config"
+	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/monitor"
+	"github.com/errorlenshq/errorlens/internal/notify"
+	"github.com/errorlenshq/errorlens/internal/perf"
+	"github.com/errorlenshq/errorlens/internal/queue"
 )
 
 func monitorService(d *db.DB, log *slog.Logger, cfg *config.Config) *monitor.Service {

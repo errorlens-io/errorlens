@@ -17,11 +17,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/rootcausehq/rootcause/internal/db"
-	"github.com/rootcausehq/rootcause/internal/ingest"
-	"github.com/rootcausehq/rootcause/internal/process"
-	"github.com/rootcausehq/rootcause/internal/queue"
-	"github.com/rootcausehq/rootcause/internal/testutil"
+	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/ingest"
+	"github.com/errorlenshq/errorlens/internal/process"
+	"github.com/errorlenshq/errorlens/internal/queue"
+	"github.com/errorlenshq/errorlens/internal/testutil"
 )
 
 type fixture struct {

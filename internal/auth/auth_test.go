@@ -88,7 +88,7 @@ func TestTOTP(t *testing.T) {
 	if len(codes) != 10 || HashRecoveryCode(strings.ToUpper(codes[0])) != hashes[0] {
 		t.Fatal("recovery code hashing")
 	}
-	if !strings.HasPrefix(TOTPURI(secret, "a@b.c", "RootCause"), "otpauth://totp/RootCause:a@b.c?") {
-		t.Fatal(TOTPURI(secret, "a@b.c", "RootCause"))
+	if !strings.HasPrefix(TOTPURI(secret, "a@b.c", "ErrorLens"), "otpauth://totp/ErrorLens:a@b.c?") {
+		t.Fatal(TOTPURI(secret, "a@b.c", "ErrorLens"))
 	}
 }

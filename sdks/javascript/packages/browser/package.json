@@ -1,16 +1,16 @@
 {
-  "name": "@rootcausehq/browser",
+  "name": "@errorlens/browser",
   "version": "0.1.0",
-  "description": "Browser SDK for RootCause, the open-source, self-hosted error tracker.",
+  "description": "Browser SDK for ErrorLens, the open-source, self-hosted error tracker.",
   "license": "MIT",
-  "homepage": "https://rootcause.sh",
+  "homepage": "https://errorlens.io",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rootcausehq/rootcause.git",
+    "url": "https://github.com/errorlenshq/errorlens.git",
     "directory": "sdks/javascript/packages/browser"
   },
   "keywords": [
-    "rootcause",
+    "errorlens",
     "error tracking",
     "exceptions",
     "monitoring"

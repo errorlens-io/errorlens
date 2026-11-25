@@ -6,7 +6,7 @@ import json
 import threading
 import unittest
 
-import rootcausehq
+import errorlens
 
 
 class _Recorder(http.server.BaseHTTPRequestHandler):
@@ -56,9 +56,9 @@ class SDKTest(unittest.TestCase):
         _Recorder.bodies.clear()
 
     def test_no_dsn_is_noop(self):
-        rootcausehq.init(dsn=None)
-        self.assertFalse(rootcausehq.is_enabled())
-        rootcausehq.capture_message("ignored")
+        errorlens.init(dsn=None)
+        self.assertFalse(errorlens.is_enabled())
+        errorlens.capture_message("ignored")
 
     def test_reports_branded_event_with_privacy_defaults(self):
         seen = []
@@ -67,22 +67,22 @@ class SDKTest(unittest.TestCase):
             seen.append(event["sdk"]["name"])
             return event
 
-        rootcausehq.init(self.dsn, release="app@1.2.3", environment="test", before_send=my_hook, unknown_option=1)
-        self.assertTrue(rootcausehq.is_enabled())
-        rootcausehq.set_user({"id": "7"})
-        rootcausehq.set_tag("region", "eu")
+        errorlens.init(self.dsn, release="app@1.2.3", environment="test", before_send=my_hook, unknown_option=1)
+        self.assertTrue(errorlens.is_enabled())
+        errorlens.set_user({"id": "7"})
+        errorlens.set_tag("region", "eu")
         try:
             1 / 0
         except ZeroDivisionError:
-            rootcausehq.capture_exception()
-        rootcausehq.flush(5)
+            errorlens.capture_exception()
+        errorlens.flush(5)
 
         events = _events()
         self.assertEqual(len(events), 1)
         ev = events[0]
-        self.assertEqual(ev["sdk"]["name"], "rootcause.python")
-        self.assertEqual(ev["sdk"]["version"], rootcausehq.__version__)
-        self.assertEqual(seen, ["rootcause.python"])  # user hook still runs
+        self.assertEqual(ev["sdk"]["name"], "errorlens.python")
+        self.assertEqual(ev["sdk"]["version"], errorlens.__version__)
+        self.assertEqual(seen, ["errorlens.python"])  # user hook still runs
         self.assertEqual(ev["release"], "app@1.2.3")
         self.assertEqual(ev["environment"], "test")
         self.assertEqual(ev["tags"]["region"], "eu")
@@ -93,13 +93,13 @@ class SDKTest(unittest.TestCase):
     def test_env_vars(self):
         import os
 
-        os.environ.update(ROOTCAUSE_DSN=self.dsn, ROOTCAUSE_RELEASE="env@9", ROOTCAUSE_ENVIRONMENT="ci")
+        os.environ.update(ERRORLENS_DSN=self.dsn, ERRORLENS_RELEASE="env@9", ERRORLENS_ENVIRONMENT="ci")
         try:
-            rootcausehq.init()
-            rootcausehq.capture_message("hello from env")
-            rootcausehq.flush(5)
+            errorlens.init()
+            errorlens.capture_message("hello from env")
+            errorlens.flush(5)
         finally:
-            for k in ("ROOTCAUSE_DSN", "ROOTCAUSE_RELEASE", "ROOTCAUSE_ENVIRONMENT"):
+            for k in ("ERRORLENS_DSN", "ERRORLENS_RELEASE", "ERRORLENS_ENVIRONMENT"):
                 os.environ.pop(k, None)
         ev = _events()[-1]
         self.assertEqual((ev["release"], ev["environment"]), ("env@9", "ci"))

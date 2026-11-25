@@ -71,5 +71,5 @@ CREATE POLICY events_tenant ON events USING (org_id = app_org_id()) WITH CHECK (
 ALTER TABLE issue_counts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY issue_counts_tenant ON issue_counts USING (org_id = app_org_id()) WITH CHECK (org_id = app_org_id());
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON issues, issue_counts TO rootcause_app;
-GRANT SELECT, INSERT ON events TO rootcause_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON issues, issue_counts TO errorlens_app;
+GRANT SELECT, INSERT ON events TO errorlens_app;

@@ -59,5 +59,5 @@ CREATE POLICY alert_history_tenant ON alert_history USING (org_id = app_org_id()
 ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY invitations_tenant ON invitations USING (org_id = app_org_id()) WITH CHECK (org_id = app_org_id());
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON alert_channels, alert_rules, alert_history, invitations TO rootcause_app;
-GRANT DELETE ON events TO rootcause_app; -- deleting a project removes its events
+GRANT SELECT, INSERT, UPDATE, DELETE ON alert_channels, alert_rules, alert_history, invitations TO errorlens_app;
+GRANT DELETE ON events TO errorlens_app; -- deleting a project removes its events

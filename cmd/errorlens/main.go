@@ -1,8 +1,8 @@
-// Command rootcause runs the RootCause server.
+// Command errorlens runs the ErrorLens server.
 //
-//	rootcause serve      run migrations, then serve the UI, API and background worker
-//	rootcause migrate    apply database migrations and exit
-//	rootcause version    print the version
+//	errorlens serve      run migrations, then serve the UI, API and background worker
+//	errorlens migrate    apply database migrations and exit
+//	errorlens version    print the version
 package main
 
 import (
@@ -18,21 +18,21 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rootcausehq/rootcause/internal/alert"
-	"github.com/rootcausehq/rootcause/internal/api"
-	"github.com/rootcausehq/rootcause/internal/billing"
-	"github.com/rootcausehq/rootcause/internal/config"
-	"github.com/rootcausehq/rootcause/internal/crypto"
-	"github.com/rootcausehq/rootcause/internal/db"
-	"github.com/rootcausehq/rootcause/internal/logs"
-	"github.com/rootcausehq/rootcause/internal/notify"
-	"github.com/rootcausehq/rootcause/internal/process"
-	"github.com/rootcausehq/rootcause/internal/queue"
-	"github.com/rootcausehq/rootcause/internal/retention"
-	"github.com/rootcausehq/rootcause/internal/sourcemap"
-	"github.com/rootcausehq/rootcause/internal/usage"
-	"github.com/rootcausehq/rootcause/internal/version"
-	"github.com/rootcausehq/rootcause/web"
+	"github.com/errorlenshq/errorlens/internal/alert"
+	"github.com/errorlenshq/errorlens/internal/api"
+	"github.com/errorlenshq/errorlens/internal/billing"
+	"github.com/errorlenshq/errorlens/internal/config"
+	"github.com/errorlenshq/errorlens/internal/crypto"
+	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/logs"
+	"github.com/errorlenshq/errorlens/internal/notify"
+	"github.com/errorlenshq/errorlens/internal/process"
+	"github.com/errorlenshq/errorlens/internal/queue"
+	"github.com/errorlenshq/errorlens/internal/retention"
+	"github.com/errorlenshq/errorlens/internal/sourcemap"
+	"github.com/errorlenshq/errorlens/internal/usage"
+	"github.com/errorlenshq/errorlens/internal/version"
+	"github.com/errorlenshq/errorlens/web"
 )
 
 func main() {
@@ -43,7 +43,7 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Fprint(os.Stderr, `Usage: rootcause <command> [flags]
+	fmt.Fprint(os.Stderr, `Usage: errorlens <command> [flags]
 
 Commands:
   serve     Run the server (applies migrations first unless -no-migrate)
@@ -53,19 +53,19 @@ Commands:
   demo --dsn DSN      Send realistic sample data to a project
 
 Configuration is read from environment variables (see README):
-  ROOTCAUSE_DATABASE_URL   Postgres connection URL (required)
-  ROOTCAUSE_PUBLIC_URL     External URL, used for DSNs and cookies (default http://localhost:8080)
-  ROOTCAUSE_LISTEN_ADDR    Listen address (default :8080)
-  ROOTCAUSE_LOG_LEVEL      debug | info | warn | error (default info)
-  ROOTCAUSE_SESSION_TTL    Login session lifetime (default 336h)
-  ROOTCAUSE_TRUSTED_PROXIES  Comma-separated proxy IPs/CIDRs whose X-Forwarded-For is trusted
-  ROOTCAUSE_SMTP_HOST, _PORT, _USERNAME, _PASSWORD, _FROM   Outgoing email
-  ROOTCAUSE_ALLOW_PRIVATE_WEBHOOKS  Allow alert webhooks to private addresses (default false)
-  ROOTCAUSE_SIGNUP_ENABLED   Let anyone create an organization (hosted mode, default false)
-  ROOTCAUSE_ENCRYPTION_KEY   Base64 32-byte key; encrypts stored event payloads (openssl rand -base64 32)
-  ROOTCAUSE_FREE_EVENT_QUOTA Monthly events for organizations created by sign-up (default 5000)
-  ROOTCAUSE_OIDC_ISSUER, _CLIENT_ID, _CLIENT_SECRET, _NAME, _AUTO_JOIN_ORG, _DEFAULT_ROLE, _ALLOWED_DOMAINS   SSO
-  ROOTCAUSE_STRIPE_SECRET_KEY, _WEBHOOK_SECRET, _PLANS (id:price_id:events,...)   Hosted billing
+  ERRORLENS_DATABASE_URL   Postgres connection URL (required)
+  ERRORLENS_PUBLIC_URL     External URL, used for DSNs and cookies (default http://localhost:8080)
+  ERRORLENS_LISTEN_ADDR    Listen address (default :8080)
+  ERRORLENS_LOG_LEVEL      debug | info | warn | error (default info)
+  ERRORLENS_SESSION_TTL    Login session lifetime (default 336h)
+  ERRORLENS_TRUSTED_PROXIES  Comma-separated proxy IPs/CIDRs whose X-Forwarded-For is trusted
+  ERRORLENS_SMTP_HOST, _PORT, _USERNAME, _PASSWORD, _FROM   Outgoing email
+  ERRORLENS_ALLOW_PRIVATE_WEBHOOKS  Allow alert webhooks to private addresses (default false)
+  ERRORLENS_SIGNUP_ENABLED   Let anyone create an organization (hosted mode, default false)
+  ERRORLENS_ENCRYPTION_KEY   Base64 32-byte key; encrypts stored event payloads (openssl rand -base64 32)
+  ERRORLENS_FREE_EVENT_QUOTA Monthly events for organizations created by sign-up (default 5000)
+  ERRORLENS_OIDC_ISSUER, _CLIENT_ID, _CLIENT_SECRET, _NAME, _AUTO_JOIN_ORG, _DEFAULT_ROLE, _ALLOWED_DOMAINS   SSO
+  ERRORLENS_STRIPE_SECRET_KEY, _WEBHOOK_SECRET, _PLANS (id:price_id:events,...)   Hosted billing
 `)
 }
 
@@ -76,7 +76,7 @@ func run(args []string) error {
 	}
 	switch args[0] {
 	case "version", "-v", "--version":
-		fmt.Printf("rootcause %s (%s)\n", version.Version, version.Commit)
+		fmt.Printf("errorlens %s (%s)\n", version.Version, version.Commit)
 		return nil
 	case "migrate":
 		return withDB(func(ctx context.Context, _ *config.Config, d *db.DB, log *slog.Logger) error {
@@ -224,7 +224,7 @@ func serve(ctx context.Context, cfg *config.Config, d *db.DB, log *slog.Logger, 
 	}
 	errCh := make(chan error, 1)
 	go func() {
-		log.Info("rootcause listening", "addr", cfg.ListenAddr, "public_url", cfg.PublicURL.String(), "role", role, "version", version.Version)
+		log.Info("errorlens listening", "addr", cfg.ListenAddr, "public_url", cfg.PublicURL.String(), "role", role, "version", version.Version)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}

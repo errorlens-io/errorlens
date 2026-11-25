@@ -12,9 +12,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/rootcausehq/rootcause/internal/audit"
-	"github.com/rootcausehq/rootcause/internal/auth"
-	"github.com/rootcausehq/rootcause/internal/db"
+	"github.com/errorlenshq/errorlens/internal/audit"
+	"github.com/errorlenshq/errorlens/internal/auth"
+	"github.com/errorlenshq/errorlens/internal/db"
 )
 
 // --- one-time user tokens ---------------------------------------------------------------
@@ -54,7 +54,7 @@ type signupRequest struct {
 	OrganizationName string `json:"organizationName"`
 }
 
-// signup creates an account and organization when ROOTCAUSE_SIGNUP_ENABLED.
+// signup creates an account and organization when ERRORLENS_SIGNUP_ENABLED.
 func (s *Server) signup(w http.ResponseWriter, r *http.Request) {
 	if !s.cfg.SignupEnabled {
 		writeError(w, http.StatusForbidden, "sign-up is disabled on this server")
@@ -208,7 +208,7 @@ func (s *Server) sendVerification(ctx context.Context, userID uuid.UUID, email s
 		return
 	}
 	link := s.cfg.PublicURL.String() + "/verify-email/" + tok
-	if err := s.sender.SendMail([]string{email}, "Confirm your RootCause email", "Confirm your email address:\n"+link+"\n\nThe link is valid for 48 hours."); err != nil {
+	if err := s.sender.SendMail([]string{email}, "Confirm your ErrorLens email", "Confirm your email address:\n"+link+"\n\nThe link is valid for 48 hours."); err != nil {
 		s.log.Warn("verification email failed", "err", err)
 	}
 }
@@ -261,7 +261,7 @@ func (s *Server) forgotPassword(w http.ResponseWriter, r *http.Request) {
 	if err := s.db.Pool.QueryRow(r.Context(), `SELECT id FROM users WHERE lower(email) = $1`, email).Scan(&userID); err == nil {
 		if tok, err := s.newUserToken(r.Context(), userID, "reset_password", time.Hour); err == nil {
 			link := s.cfg.PublicURL.String() + "/reset-password/" + tok
-			_ = s.sender.SendMail([]string{email}, "Reset your RootCause password", "Reset your password (valid for 1 hour):\n"+link+"\n\nIf you didn't ask for this, ignore this email.")
+			_ = s.sender.SendMail([]string{email}, "Reset your ErrorLens password", "Reset your password (valid for 1 hour):\n"+link+"\n\nIf you didn't ask for this, ignore this email.")
 		}
 	}
 	// Same response whether or not the account exists.
@@ -374,7 +374,7 @@ func (s *Server) mfaSetup(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]string{
 		"secret": auth.TOTPSecretString(secret),
-		"uri":    auth.TOTPURI(secret, u.Email, "RootCause"),
+		"uri":    auth.TOTPURI(secret, u.Email, "ErrorLens"),
 	})
 }
 

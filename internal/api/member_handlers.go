@@ -10,9 +10,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/rootcausehq/rootcause/internal/audit"
-	"github.com/rootcausehq/rootcause/internal/auth"
-	"github.com/rootcausehq/rootcause/internal/db"
+	"github.com/errorlenshq/errorlens/internal/audit"
+	"github.com/errorlenshq/errorlens/internal/auth"
+	"github.com/errorlenshq/errorlens/internal/db"
 )
 
 // Member of an organization.
@@ -135,8 +135,8 @@ func (s *Server) invite(w http.ResponseWriter, r *http.Request) {
 	link := s.cfg.PublicURL.String() + "/invite/" + token
 	emailed := false
 	if s.cfg.SMTP.Host != "" {
-		body := userFrom(ctx).Email + " invited you to the " + org.Name + " organization on RootCause.\n\nAccept the invitation (valid for 7 days):\n" + link + "\n"
-		if err := s.sender.SendMail([]string{email}, "You're invited to "+org.Name+" on RootCause", body); err != nil {
+		body := userFrom(ctx).Email + " invited you to the " + org.Name + " organization on ErrorLens.\n\nAccept the invitation (valid for 7 days):\n" + link + "\n"
+		if err := s.sender.SendMail([]string{email}, "You're invited to "+org.Name+" on ErrorLens", body); err != nil {
 			s.log.Warn("invite email failed", "err", err)
 		} else {
 			emailed = true

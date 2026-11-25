@@ -2,8 +2,8 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "rootcause.fullname" . }}
-  labels: {{- include "rootcause.labels" . | nindent 4 }}
+  name: {{ include "errorlens.fullname" . }}
+  labels: {{- include "errorlens.labels" . | nindent 4 }}
   annotations: {{- toYaml .Values.ingress.annotations | nindent 4 }}
 spec:
   {{- with .Values.ingress.className }}
@@ -17,7 +17,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "rootcause.fullname" . }}
+                name: {{ include "errorlens.fullname" . }}
                 port: { number: {{ .Values.service.port }} }
   {{- with .Values.ingress.tls }}
   tls: {{- toYaml . | nindent 4 }}

@@ -1,5 +1,5 @@
 // Package queue is a small Postgres-backed job queue using
-// SELECT ... FOR UPDATE SKIP LOCKED, so RootCause needs no Kafka or Redis.
+// SELECT ... FOR UPDATE SKIP LOCKED, so ErrorLens needs no Kafka or Redis.
 package queue
 
 import (

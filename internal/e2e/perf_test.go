@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rootcausehq/rootcause/internal/monitor"
-	"github.com/rootcausehq/rootcause/internal/notify"
-	"github.com/rootcausehq/rootcause/internal/perf"
+	"github.com/errorlenshq/errorlens/internal/monitor"
+	"github.com/errorlenshq/errorlens/internal/notify"
+	"github.com/errorlenshq/errorlens/internal/perf"
 )
 
 func TestPerformanceAndTraceView(t *testing.T) {

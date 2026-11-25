@@ -20,7 +20,7 @@ import (
 var migrationFS embed.FS
 
 // AppRole is the restricted role that application queries run as.
-const AppRole = "rootcause_app"
+const AppRole = "errorlens_app"
 
 // DB wraps a pgx pool.
 type DB struct {

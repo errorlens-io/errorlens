@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/rootcausehq/rootcause/internal/db"
+	"github.com/errorlenshq/errorlens/internal/db"
 )
 
 // Meter batches counters in memory and flushes them to usage_daily.

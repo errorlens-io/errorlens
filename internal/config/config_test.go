@@ -10,7 +10,7 @@ func env(m map[string]string) func(string) string {
 }
 
 func TestLoadDefaults(t *testing.T) {
-	cfg, err := Load(env(map[string]string{"ROOTCAUSE_DATABASE_URL": "postgres://x"}))
+	cfg, err := Load(env(map[string]string{"ERRORLENS_DATABASE_URL": "postgres://x"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,9 +28,9 @@ func TestLoadDefaults(t *testing.T) {
 func TestLoadErrors(t *testing.T) {
 	cases := map[string]map[string]string{
 		"missing db": {},
-		"bad url":    {"ROOTCAUSE_DATABASE_URL": "x", "ROOTCAUSE_PUBLIC_URL": "errors.example.com"},
-		"bad level":  {"ROOTCAUSE_DATABASE_URL": "x", "ROOTCAUSE_LOG_LEVEL": "loud"},
-		"short ttl":  {"ROOTCAUSE_DATABASE_URL": "x", "ROOTCAUSE_SESSION_TTL": "5s"},
+		"bad url":    {"ERRORLENS_DATABASE_URL": "x", "ERRORLENS_PUBLIC_URL": "errors.example.com"},
+		"bad level":  {"ERRORLENS_DATABASE_URL": "x", "ERRORLENS_LOG_LEVEL": "loud"},
+		"short ttl":  {"ERRORLENS_DATABASE_URL": "x", "ERRORLENS_SESSION_TTL": "5s"},
 	}
 	for name, m := range cases {
 		if _, err := Load(env(m)); err == nil {
@@ -41,8 +41,8 @@ func TestLoadErrors(t *testing.T) {
 
 func TestHTTPSPublicURL(t *testing.T) {
 	cfg, err := Load(env(map[string]string{
-		"ROOTCAUSE_DATABASE_URL": "x",
-		"ROOTCAUSE_PUBLIC_URL":   "https://errors.example.com/",
+		"ERRORLENS_DATABASE_URL": "x",
+		"ERRORLENS_PUBLIC_URL":   "https://errors.example.com/",
 	}))
 	if err != nil {
 		t.Fatal(err)

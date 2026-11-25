@@ -16,15 +16,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rootcausehq/rootcause/internal/api"
-	"github.com/rootcausehq/rootcause/internal/config"
-	"github.com/rootcausehq/rootcause/internal/crypto"
-	"github.com/rootcausehq/rootcause/internal/db"
-	"github.com/rootcausehq/rootcause/internal/logs"
-	"github.com/rootcausehq/rootcause/internal/process"
-	"github.com/rootcausehq/rootcause/internal/queue"
-	"github.com/rootcausehq/rootcause/internal/sourcemap"
-	"github.com/rootcausehq/rootcause/internal/testutil"
+	"github.com/errorlenshq/errorlens/internal/api"
+	"github.com/errorlenshq/errorlens/internal/config"
+	"github.com/errorlenshq/errorlens/internal/crypto"
+	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/logs"
+	"github.com/errorlenshq/errorlens/internal/process"
+	"github.com/errorlenshq/errorlens/internal/queue"
+	"github.com/errorlenshq/errorlens/internal/sourcemap"
+	"github.com/errorlenshq/errorlens/internal/testutil"
 )
 
 type app struct {
@@ -42,7 +42,7 @@ func newApp(t *testing.T, encrypt bool) *app {
 	srv.Start()
 	t.Cleanup(srv.Close)
 	cfg, err := config.Load(func(k string) string {
-		return map[string]string{"ROOTCAUSE_DATABASE_URL": "x", "ROOTCAUSE_PUBLIC_URL": srv.URL}[k]
+		return map[string]string{"ERRORLENS_DATABASE_URL": "x", "ERRORLENS_PUBLIC_URL": srv.URL}[k]
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -195,7 +195,7 @@ func TestSourceMapsWithAPIToken(t *testing.T) {
 	_, body := a.req("POST", "/api/0/organizations/acme/tokens", map[string]string{"name": "CI", "role": "member"}, nil)
 	var tok struct{ Token string }
 	json.Unmarshal(body, &tok)
-	if !strings.HasPrefix(tok.Token, "rc_") {
+	if !strings.HasPrefix(tok.Token, "el_") {
 		t.Fatalf("token = %s", body)
 	}
 
@@ -219,7 +219,7 @@ func TestSourceMapsWithAPIToken(t *testing.T) {
 	}
 	// Use a fresh client so only the token authenticates.
 	a.http.Jar, _ = cookiejar.New(nil)
-	if code := upload("~/static/app.min.js", minified, "rc_wrong"); code != 401 {
+	if code := upload("~/static/app.min.js", minified, "el_wrong"); code != 401 {
 		t.Fatalf("bad token upload = %d", code)
 	}
 	if code := upload("~/static/app.min.js", minified, tok.Token); code != 201 {

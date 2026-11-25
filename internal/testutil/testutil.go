@@ -1,6 +1,6 @@
 // Package testutil provides a throwaway, migrated Postgres database for tests.
 //
-// Set ROOTCAUSE_TEST_DATABASE_URL to a Postgres URL whose user may create
+// Set ERRORLENS_TEST_DATABASE_URL to a Postgres URL whose user may create
 // databases (e.g. postgres://postgres:postgres@localhost:5434/postgres).
 // Tests that need a database are skipped when it is unset.
 package testutil
@@ -16,19 +16,19 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/rootcausehq/rootcause/internal/db"
+	"github.com/errorlenshq/errorlens/internal/db"
 )
 
 // NewDB creates a fresh database, runs migrations and drops it on cleanup.
 func NewDB(t *testing.T) *db.DB {
 	t.Helper()
-	admin := os.Getenv("ROOTCAUSE_TEST_DATABASE_URL")
+	admin := os.Getenv("ERRORLENS_TEST_DATABASE_URL")
 	if admin == "" {
-		t.Skip("ROOTCAUSE_TEST_DATABASE_URL not set")
+		t.Skip("ERRORLENS_TEST_DATABASE_URL not set")
 	}
 	ctx := context.Background()
 
-	name := fmt.Sprintf("rootcause_test_%d", time.Now().UnixNano())
+	name := fmt.Sprintf("errorlens_test_%d", time.Now().UnixNano())
 	conn, err := pgx.Connect(ctx, admin)
 	if err != nil {
 		t.Fatalf("connect admin db: %v", err)

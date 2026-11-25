@@ -1,4 +1,4 @@
-module github.com/rootcausehq/rootcause
+module github.com/errorlenshq/errorlens
 
 go 1.27.1
 

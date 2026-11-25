@@ -11,9 +11,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/rootcausehq/rootcause/internal/audit"
-	"github.com/rootcausehq/rootcause/internal/db"
-	"github.com/rootcausehq/rootcause/internal/notify"
+	"github.com/errorlenshq/errorlens/internal/audit"
+	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/notify"
 )
 
 // AlertChannel is a notification destination. Secrets are never returned.
@@ -220,7 +220,7 @@ func (s *Server) testChannel(w http.ResponseWriter, r *http.Request) {
 	}
 	org := orgFrom(r.Context())
 	msg := notify.Message{
-		Subject: "[RootCause] Test notification", Reason: "Test notification", Title: "This is a test alert from RootCause",
+		Subject: "[ErrorLens] Test notification", Reason: "Test notification", Title: "This is a test alert from ErrorLens",
 		Culprit: "settings/alerts", Project: "example", Level: "info", Count: 1, FiredAt: time.Now().UTC(),
 		RuleName: "test", IsTest: true, Org: org.Slug, URL: s.cfg.PublicURL.String() + "/" + org.Slug + "/alerts",
 	}

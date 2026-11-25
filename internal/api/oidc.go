@@ -16,9 +16,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/oauth2"
 
-	"github.com/rootcausehq/rootcause/internal/audit"
-	"github.com/rootcausehq/rootcause/internal/auth"
-	"github.com/rootcausehq/rootcause/internal/db"
+	"github.com/errorlenshq/errorlens/internal/audit"
+	"github.com/errorlenshq/errorlens/internal/auth"
+	"github.com/errorlenshq/errorlens/internal/db"
 )
 
 // OIDCConfig configures single sign-on with any OpenID Connect provider.
@@ -32,18 +32,18 @@ type OIDCConfig struct {
 	DefaultRole    string
 }
 
-// OIDCFromEnv reads ROOTCAUSE_OIDC_* variables; nil when not configured.
+// OIDCFromEnv reads ERRORLENS_OIDC_* variables; nil when not configured.
 func OIDCFromEnv(getenv func(string) string) *OIDCConfig {
 	if getenv == nil {
 		getenv = os.Getenv
 	}
 	c := &OIDCConfig{
-		Issuer:       getenv("ROOTCAUSE_OIDC_ISSUER"),
-		ClientID:     getenv("ROOTCAUSE_OIDC_CLIENT_ID"),
-		ClientSecret: getenv("ROOTCAUSE_OIDC_CLIENT_SECRET"),
-		Name:         getenv("ROOTCAUSE_OIDC_NAME"),
-		AutoJoinOrg:  getenv("ROOTCAUSE_OIDC_AUTO_JOIN_ORG"),
-		DefaultRole:  getenv("ROOTCAUSE_OIDC_DEFAULT_ROLE"),
+		Issuer:       getenv("ERRORLENS_OIDC_ISSUER"),
+		ClientID:     getenv("ERRORLENS_OIDC_CLIENT_ID"),
+		ClientSecret: getenv("ERRORLENS_OIDC_CLIENT_SECRET"),
+		Name:         getenv("ERRORLENS_OIDC_NAME"),
+		AutoJoinOrg:  getenv("ERRORLENS_OIDC_AUTO_JOIN_ORG"),
+		DefaultRole:  getenv("ERRORLENS_OIDC_DEFAULT_ROLE"),
 	}
 	if c.Issuer == "" || c.ClientID == "" {
 		return nil
@@ -54,7 +54,7 @@ func OIDCFromEnv(getenv func(string) string) *OIDCConfig {
 	if !roles[c.DefaultRole] || c.DefaultRole == "owner" {
 		c.DefaultRole = "member"
 	}
-	for _, d := range strings.Split(getenv("ROOTCAUSE_OIDC_ALLOWED_DOMAINS"), ",") {
+	for _, d := range strings.Split(getenv("ERRORLENS_OIDC_ALLOWED_DOMAINS"), ",") {
 		if d = strings.ToLower(strings.TrimSpace(d)); d != "" {
 			c.AllowedDomains = append(c.AllowedDomains, d)
 		}
@@ -112,7 +112,7 @@ func (s *Server) authConfig(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-const oidcCookie = "rootcause_oidc"
+const oidcCookie = "errorlens_oidc"
 
 func (s *Server) oidcStart(w http.ResponseWriter, r *http.Request) {
 	if s.oidc == nil {
@@ -233,7 +233,7 @@ func (s *Server) oidcUser(ctx context.Context, subject, email, name, ip string) 
 		cfg := s.oidc.cfg
 		domain := email[strings.LastIndexByte(email, '@')+1:]
 		if cfg.AutoJoinOrg == "" || (len(cfg.AllowedDomains) > 0 && !slices.Contains(cfg.AllowedDomains, domain)) {
-			return &httpError{http.StatusForbidden, "No RootCause account exists for " + email + ". Ask an administrator for an invitation."}
+			return &httpError{http.StatusForbidden, "No ErrorLens account exists for " + email + ". Ask an administrator for an invitation."}
 		}
 		var orgID uuid.UUID
 		if err := tx.QueryRow(ctx, `SELECT id FROM organizations WHERE slug = $1`, cfg.AutoJoinOrg).Scan(&orgID); err != nil {

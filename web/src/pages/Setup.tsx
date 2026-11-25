@@ -5,10 +5,10 @@ type Guide = { install: string; code: (dsn: string) => string; lang: string };
 const guides: Record<string, Guide> = {
   python: {
     lang: "Python",
-    install: "pip install rootcausehq",
-    code: (dsn) => `import rootcausehq
+    install: "pip install errorlens",
+    code: (dsn) => `import errorlens
 
-rootcausehq.init(
+errorlens.init(
     dsn="${dsn}",
     release="my-app@1.0.0",
     environment="production",
@@ -16,11 +16,11 @@ rootcausehq.init(
   },
   node: {
     lang: "Node.js",
-    install: "npm install @rootcausehq/node",
+    install: "npm install @errorlens/node",
     code: (dsn) => `// Load this before anything else in your app.
-import * as RootCause from "@rootcausehq/node";
+import * as ErrorLens from "@errorlens/node";
 
-RootCause.init({
+ErrorLens.init({
   dsn: "${dsn}",
   release: "my-app@1.0.0",
   environment: "production",
@@ -28,10 +28,10 @@ RootCause.init({
   },
   javascript: {
     lang: "Browser JavaScript",
-    install: "npm install @rootcausehq/browser",
-    code: (dsn) => `import * as RootCause from "@rootcausehq/browser";
+    install: "npm install @errorlens/browser",
+    code: (dsn) => `import * as ErrorLens from "@errorlens/browser";
 
-RootCause.init({
+ErrorLens.init({
   dsn: "${dsn}",
   release: "my-app@1.0.0",
   environment: "production",
@@ -40,9 +40,9 @@ RootCause.init({
 };
 
 const test: Record<string, string> = {
-  python: "rootcausehq.capture_message(\"Hello from RootCause\")",
-  node: "RootCause.captureMessage(\"Hello from RootCause\");",
-  javascript: "RootCause.captureMessage(\"Hello from RootCause\");",
+  python: "errorlens.capture_message(\"Hello from ErrorLens\")",
+  node: "ErrorLens.captureMessage(\"Hello from ErrorLens\");",
+  javascript: "ErrorLens.captureMessage(\"Hello from ErrorLens\");",
 };
 
 export function SetupGuide({ platform, dsn }: { platform: string; dsn: string }) {
@@ -50,7 +50,7 @@ export function SetupGuide({ platform, dsn }: { platform: string; dsn: string })
   if (!g) {
     return (
       <p className="muted small">
-        A RootCause SDK for <strong>{platform}</strong> is on the way. Until then, any client that speaks the standard
+        A ErrorLens SDK for <strong>{platform}</strong> is on the way. Until then, any client that speaks the standard
         error-envelope protocol works with this DSN.
       </p>
     );

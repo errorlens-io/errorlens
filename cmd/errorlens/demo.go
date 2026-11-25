@@ -18,7 +18,7 @@ import (
 // demoCmd sends realistic sample data (errors, logs, transactions, cron
 // check-ins) to a project through the public ingestion endpoints:
 //
-//	rootcause demo --dsn https://<key>@errors.example.com/1
+//	errorlens demo --dsn https://<key>@errors.example.com/1
 func demoCmd(args []string) error {
 	fs := flag.NewFlagSet("demo", flag.ContinueOnError)
 	dsn := fs.String("dsn", "", "project DSN to send demo data to")
@@ -54,7 +54,7 @@ func demoCmd(args []string) error {
 			b.WriteString("\n")
 		}
 		req, _ := http.NewRequest(http.MethodPost, endpoint, &b)
-		req.Header.Set("X-Sentry-Auth", "Sentry sentry_version=7, sentry_client=rootcause-demo/1.0, sentry_key="+key)
+		req.Header.Set("X-Sentry-Auth", "Sentry sentry_version=7, sentry_client=errorlens-demo/1.0, sentry_key="+key)
 		resp, err := client.Do(req)
 		if err != nil {
 			return err

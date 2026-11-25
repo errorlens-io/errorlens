@@ -1,25 +1,25 @@
 image:
-  repository: rootcausehq/rootcause
+  repository: errorlenshq/errorlens
   tag: ""            # defaults to the chart appVersion
   pullPolicy: IfNotPresent
 
-# External URL users and SDKs reach RootCause on (used in DSNs and links).
+# External URL users and SDKs reach ErrorLens on (used in DSNs and links).
 publicURL: https://errors.example.com
 
 # Postgres connection. Use an existing Secret with key DATABASE_URL, or set url.
 database:
   existingSecret: ""
-  url: ""            # postgres://user:pass@host:5432/rootcause?sslmode=require
+  url: ""            # postgres://user:pass@host:5432/errorlens?sslmode=require
 
 # Optional: base64 32-byte key for encrypting stored events. Keep a backup!
 encryption:
   existingSecret: "" # Secret with key ENCRYPTION_KEY
   key: ""
 
-# Extra environment (SMTP, SSO, Stripe, ...). See `rootcause help`.
+# Extra environment (SMTP, SSO, Stripe, ...). See `errorlens help`.
 env: {}
-#  ROOTCAUSE_SMTP_HOST: smtp.example.com
-#  ROOTCAUSE_TRUSTED_PROXIES: 10.0.0.0/8
+#  ERRORLENS_SMTP_HOST: smtp.example.com
+#  ERRORLENS_TRUSTED_PROXIES: 10.0.0.0/8
 
 web:
   replicas: 2

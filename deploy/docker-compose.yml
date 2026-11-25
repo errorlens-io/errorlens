@@ -1,26 +1,26 @@
-# RootCause + Postgres. Usage:
+# ErrorLens + Postgres. Usage:
 #   cp deploy/.env.example deploy/.env   # then edit the password
 #   docker compose -f deploy/docker-compose.yml up -d
 # Open http://localhost:8080 and create the first account.
-name: rootcause
+name: errorlens
 
 services:
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: rootcause
-      POSTGRES_DB: rootcause
+      POSTGRES_USER: errorlens
+      POSTGRES_DB: errorlens
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rootcause"]
+      test: ["CMD-SHELL", "pg_isready -U errorlens"]
       interval: 5s
       retries: 10
 
-  rootcause:
-    image: rootcausehq/rootcause:${ROOTCAUSE_VERSION:-latest}
+  errorlens:
+    image: errorlenshq/errorlens:${ERRORLENS_VERSION:-latest}
     build:
       context: ..
       dockerfile: deploy/Dockerfile
@@ -29,19 +29,19 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      ROOTCAUSE_DATABASE_URL: postgres://rootcause:${POSTGRES_PASSWORD}@postgres:5432/rootcause?sslmode=disable
-      ROOTCAUSE_PUBLIC_URL: ${ROOTCAUSE_PUBLIC_URL:-http://localhost:8080}
+      ERRORLENS_DATABASE_URL: postgres://errorlens:${POSTGRES_PASSWORD}@postgres:5432/errorlens?sslmode=disable
+      ERRORLENS_PUBLIC_URL: ${ERRORLENS_PUBLIC_URL:-http://localhost:8080}
       # Optional settings (leave empty to disable):
-      ROOTCAUSE_ENCRYPTION_KEY: ${ROOTCAUSE_ENCRYPTION_KEY:-}
-      ROOTCAUSE_SMTP_HOST: ${ROOTCAUSE_SMTP_HOST:-}
-      ROOTCAUSE_SMTP_PORT: ${ROOTCAUSE_SMTP_PORT:-587}
-      ROOTCAUSE_SMTP_USERNAME: ${ROOTCAUSE_SMTP_USERNAME:-}
-      ROOTCAUSE_SMTP_PASSWORD: ${ROOTCAUSE_SMTP_PASSWORD:-}
-      ROOTCAUSE_SMTP_FROM: ${ROOTCAUSE_SMTP_FROM:-RootCause <rootcause@localhost>}
-      ROOTCAUSE_ALLOW_PRIVATE_WEBHOOKS: ${ROOTCAUSE_ALLOW_PRIVATE_WEBHOOKS:-false}
-      ROOTCAUSE_SIGNUP_ENABLED: ${ROOTCAUSE_SIGNUP_ENABLED:-false}
+      ERRORLENS_ENCRYPTION_KEY: ${ERRORLENS_ENCRYPTION_KEY:-}
+      ERRORLENS_SMTP_HOST: ${ERRORLENS_SMTP_HOST:-}
+      ERRORLENS_SMTP_PORT: ${ERRORLENS_SMTP_PORT:-587}
+      ERRORLENS_SMTP_USERNAME: ${ERRORLENS_SMTP_USERNAME:-}
+      ERRORLENS_SMTP_PASSWORD: ${ERRORLENS_SMTP_PASSWORD:-}
+      ERRORLENS_SMTP_FROM: ${ERRORLENS_SMTP_FROM:-ErrorLens <errorlens@localhost>}
+      ERRORLENS_ALLOW_PRIVATE_WEBHOOKS: ${ERRORLENS_ALLOW_PRIVATE_WEBHOOKS:-false}
+      ERRORLENS_SIGNUP_ENABLED: ${ERRORLENS_SIGNUP_ENABLED:-false}
     ports:
-      - "${ROOTCAUSE_PORT:-8080}:8080"
+      - "${ERRORLENS_PORT:-8080}:8080"
 
 volumes:
   pgdata:

@@ -1,6 +1,6 @@
-# RootCause — Architecture & MVP Plan
+# ErrorLens — Architecture & MVP Plan
 
-> **RootCause** — open-source, self-hosted error & log tracking.
+> **ErrorLens** — open-source, self-hosted error & log tracking.
 > *Your errors, your servers, your eyes only.*
 
 Status: v0.1 · 2026-11-25 — **Phases 0–4 implemented** (see "Implementation status" at the end)
@@ -11,8 +11,8 @@ Status: v0.1 · 2026-11-25 — **Phases 0–4 implemented** (see "Implementation
 
 1. **Privacy by construction.** Sensitive data is scrubbed *before* it is written to disk. No telemetry, no phone-home, no third-party scripts in the UI.
 2. **Drop-in for existing SDKs.** Teams keep the open-source error SDKs already in their apps and only change the DSN. Every major language works on day one.
-3. **One container to run.** `docker run rootcausehq/rootcause` + Postgres. Runs in ~512 MB RAM for small teams.
-4. **One codebase, two deployments.** Self-hosted (single org) and RootCause Cloud (paid, multi-tenant) run the same code.
+3. **One container to run.** `docker run errorlenshq/errorlens` + Postgres. Runs in ~512 MB RAM for small teams.
+4. **One codebase, two deployments.** Self-hosted (single org) and ErrorLens Cloud (paid, multi-tenant) run the same code.
 5. **Clean-room implementation.** No code copied from any proprietary or source-available product. Only the public wire protocol (documented by the open-source SDKs) is implemented.
 
 ### Non-goals for v1
@@ -41,7 +41,7 @@ Session replay, profiling, full APM/tracing UI, native crash (minidump) symbolic
           │ envelope/store              │
           ▼                             ▼
  ┌──────────────────────────────────────────────┐
- │              rootcause (single binary)       │
+ │              errorlens (single binary)       │
  │                                              │
  │  ┌────────────┐   ┌──────────┐  ┌──────────┐ │
  │  │ Ingest API │──▶│ Scrubber │─▶│  Queue   │ │
@@ -74,7 +74,7 @@ The binary can run all roles, or be split with `--role=ingest|worker|web` for sc
 
 ### DSN
 ```
-https://<public_key>@rootcause.example.com/<project_id>
+https://<public_key>@errorlens.example.com/<project_id>
 ```
 
 ### Endpoints
@@ -181,7 +181,7 @@ job_queue       (id, kind, payload, run_at, attempts, locked_until)
 
 ---
 
-## 8. Multi-tenancy & RootCause Cloud
+## 8. Multi-tenancy & ErrorLens Cloud
 
 | Tier | Isolation |
 |---|---|
@@ -215,15 +215,15 @@ Cloud-only extras (kept in a separate private module or config flags — the ope
 
 ```bash
 docker run -d -p 8000:8000 \
-  -e ROOTCAUSE_DATABASE_URL=postgres://… \
-  -e ROOTCAUSE_SECRET_KEY=… \
-  -e ROOTCAUSE_PUBLIC_URL=https://errors.example.com \
-  rootcausehq/rootcause:latest
+  -e ERRORLENS_DATABASE_URL=postgres://… \
+  -e ERRORLENS_SECRET_KEY=… \
+  -e ERRORLENS_PUBLIC_URL=https://errors.example.com \
+  errorlenshq/errorlens:latest
 ```
 
 - `docker-compose.yml` with Postgres (+ optional Caddy for TLS).
 - First boot: run migrations automatically, print one-time admin setup link.
-- Config: env vars, optional `rootcause.yaml`.
+- Config: env vars, optional `errorlens.yaml`.
 - Health: `/healthz`, `/readyz`; Prometheus `/metrics` (local only, off by default).
 - Backups: documented `pg_dump` recipe + optional built-in scheduled backup to S3-compatible storage.
 - Helm chart in phase 3.
@@ -235,8 +235,8 @@ docker run -d -p 8000:8000 \
 ## 11. Repository layout
 
 ```
-rootcause/
-├── cmd/rootcause/          # main.go (serve, migrate, createuser, …)
+errorlens/
+├── cmd/errorlens/          # main.go (serve, migrate, createuser, …)
 ├── internal/
 │   ├── ingest/             # HTTP endpoints, envelope parser, auth, rate limit
 │   ├── scrub/              # PII scrubber + rules
@@ -271,7 +271,7 @@ rootcause/
 - Issues list + issue detail UI, resolve/ignore/assign
 - Email + Slack + webhook alerts (new issue, regression, spike)
 - Retention via partition dropping, audit log
-- Docker image + compose, docs site on rootcause.sh
+- Docker image + compose, docs site on errorlens.io
 - Test with official SDKs: Python, JavaScript (browser + Node), Go, PHP, Java
 
 ### Phase 2 — Logs & developer workflow (≈6 weeks)
@@ -281,7 +281,7 @@ rootcause/
 - Attachments, session counts / crash-free rate
 - App-level payload encryption (DEK/KEK)
 
-### Phase 3 — RootCause Cloud (≈6–8 weeks)
+### Phase 3 — ErrorLens Cloud (≈6–8 weeks)
 - Org signup, Stripe billing, quotas, usage dashboard
 - SSO (OIDC/SAML), BYOK, data regions
 - Horizontal scaling (`--role` split), Helm chart, load testing
@@ -302,7 +302,7 @@ rootcause/
 | 1 | **License** | **AGPL-3.0** for the server (stops others reselling a closed hosted copy, keeps it truly open source) + MIT for any CLI/SDK helpers. Alternative: Apache-2.0 for maximum adoption, accepting that clouds could resell it. |
 | 2 | Backend language | Go (fast to build, tiny image). Rust only if the team already knows it. |
 | 3 | Cloud-only code | Keep in a private repo/module behind interfaces; open core stays feature-complete for self-hosters. |
-| 4 | Own SDKs? | Phase 1–2: reuse the existing MIT-licensed SDKs + OpenTelemetry. Later: publish RootCause-branded SDK packages (MIT allows forking/renaming) so setup docs only show RootCause names. |
+| 4 | Own SDKs? | Phase 1–2: reuse the existing MIT-licensed SDKs + OpenTelemetry. Later: publish ErrorLens-branded SDK packages (MIT allows forking/renaming) so setup docs only show ErrorLens names. |
 | 5 | Contributor agreement | Use DCO (sign-off), not a CLA, to build community trust. |
 
 ---
@@ -313,10 +313,10 @@ rootcause/
 |---|---|
 | Grouping quality worse than incumbents → noisy issues | Real-payload test corpus, snapshot tests, user-editable fingerprint rules, merge/unmerge issues |
 | Upstream SDK protocol changes | Protocol is versioned and SDKs stay backward compatible; integration tests pinned to SDK versions in CI |
-| Trademark / affiliation confusion | Never use other products' names or logos anywhere in RootCause; own brand, own UI design |
+| Trademark / affiliation confusion | Never use other products' names or logos anywhere in ErrorLens; own brand, own UI design |
 | Postgres limits at high volume | Partitioning, batching inserts, COPY; ClickHouse adapter for large users |
 | Security bug undermines the privacy brand | Scrub-before-disk invariant tested, RLS, fuzzing the envelope parser, external audit before Cloud launch, bug bounty |
-| Domain not yet purchased | Buy rootcause.sh before any public announcement |
+| Domain not yet purchased | Buy errorlens.io before any public announcement |
 
 
 ---
@@ -326,13 +326,13 @@ rootcause/
 | Phase | Status | Notes |
 |---|---|---|
 | 0 — Foundation | ✅ Done | Go + Postgres, migrations, RLS, job queue, auth, UI shell, Docker, CI |
-| 1 — Errors MVP | ✅ Done | Ingest (envelope/store), scrubbing, grouping, regressions, issues UI, alerts (email/Slack/Discord/webhook), members & invitations, privacy settings, audit log, own SDKs (`rootcausehq`, `@rootcausehq/node`, `@rootcausehq/browser`) |
+| 1 — Errors MVP | ✅ Done | Ingest (envelope/store), scrubbing, grouping, regressions, issues UI, alerts (email/Slack/Discord/webhook), members & invitations, privacy settings, audit log, own SDKs (`errorlens`, `@errorlens/node`, `@errorlens/browser`) |
 | 2 — Logs & workflow | ✅ Done | SDK + OTLP logs, releases, JS source maps + upload CLI, API tokens, payload encryption at rest |
 | 3 — Hosted | ✅ Done (code) | Sign-up, email verification, password reset, quotas & usage, Stripe hooks, admin console, TOTP 2FA, OIDC SSO, web/worker roles, Helm chart |
 | 4 — Beyond | ✅ Partly | Transactions/spans (SDK + OTLP), performance page, trace view, cron + uptime monitors. Not done: ClickHouse adapter, ProGuard/dSYM symbolication, session replay, profiling |
 
 ### Not done / needs the owner
-- Buy **rootcause.sh**; create GitHub org `rootcausehq`, Docker Hub `rootcausehq`, npm scope `@rootcausehq`, PyPI `rootcausehq`; then publish the SDKs and image.
+- Buy **errorlens.io**; create GitHub org `errorlenshq` (`errorlens` is taken), Docker Hub `errorlenshq`, npm scope `@errorlens`, PyPI `errorlens`; then publish the SDKs and image.
 - Stripe account, price IDs and webhook secret for the hosted tier (code is ready, untested against live Stripe).
 - External security review before offering the hosted service.
 - Load testing against the performance targets in §10.

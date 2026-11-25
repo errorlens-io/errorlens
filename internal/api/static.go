@@ -26,7 +26,7 @@ func (s *Server) serveUI(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := fs.Stat(s.ui, "index.html"); err != nil {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Write([]byte("RootCause is running, but the web UI was not built into this binary. Run `make web` and rebuild."))
+		w.Write([]byte("ErrorLens is running, but the web UI was not built into this binary. Run `make web` and rebuild."))
 		return
 	}
 	w.Header().Set("Cache-Control", "no-cache")

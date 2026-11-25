@@ -36,17 +36,17 @@ function events() {
 
 test("ESM and CJS builds expose the same API", () => {
   const require = createRequire(import.meta.url);
-  const cjs = require("@rootcausehq/node");
+  const cjs = require("@errorlens/node");
   assert.equal(typeof cjs.init, "function");
   assert.equal(typeof cjs.captureException, "function");
-  assert.equal(cjs.SDK_NAME, "rootcause.javascript.node");
+  assert.equal(cjs.SDK_NAME, "errorlens.javascript.node");
 });
 
 test("reports branded events with release/environment from env vars", async () => {
-  process.env.ROOTCAUSE_DSN = dsn;
-  process.env.ROOTCAUSE_RELEASE = "shop@3.1.0";
-  process.env.ROOTCAUSE_ENVIRONMENT = "ci";
-  const rc = await import("@rootcausehq/node");
+  process.env.ERRORLENS_DSN = dsn;
+  process.env.ERRORLENS_RELEASE = "shop@3.1.0";
+  process.env.ERRORLENS_ENVIRONMENT = "ci";
+  const rc = await import("@errorlens/node");
   let hookSaw = "";
   rc.init({ beforeSend: (e) => ((hookSaw = e.sdk.name), e), defaultIntegrations: false });
   assert.ok(rc.isEnabled());
@@ -56,8 +56,8 @@ test("reports branded events with release/environment from env vars", async () =
 
   const [ev] = events();
   assert.ok(ev, "no event received");
-  assert.equal(ev.sdk.name, "rootcause.javascript.node");
-  assert.equal(hookSaw, "rootcause.javascript.node");
+  assert.equal(ev.sdk.name, "errorlens.javascript.node");
+  assert.equal(hookSaw, "errorlens.javascript.node");
   assert.equal(ev.release, "shop@3.1.0");
   assert.equal(ev.environment, "ci");
   assert.equal(ev.tags.region, "eu");

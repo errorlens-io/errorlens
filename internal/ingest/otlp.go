@@ -15,15 +15,15 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/rootcausehq/rootcause/internal/logs"
-	"github.com/rootcausehq/rootcause/internal/monitor"
-	"github.com/rootcausehq/rootcause/internal/perf"
-	"github.com/rootcausehq/rootcause/internal/scrub"
+	"github.com/errorlenshq/errorlens/internal/logs"
+	"github.com/errorlenshq/errorlens/internal/monitor"
+	"github.com/errorlenshq/errorlens/internal/perf"
+	"github.com/errorlenshq/errorlens/internal/scrub"
 )
 
 // keyOnly authenticates OTLP requests, which carry no project id in the path.
 func (h *Handler) keyOnly(r *http.Request) (*projectKey, int, string) {
-	public := strings.TrimSpace(r.Header.Get("x-rootcause-key"))
+	public := strings.TrimSpace(r.Header.Get("x-errorlens-key"))
 	if public == "" {
 		if a := r.Header.Get("Authorization"); strings.HasPrefix(a, "Bearer ") {
 			public = strings.TrimSpace(strings.TrimPrefix(a, "Bearer "))

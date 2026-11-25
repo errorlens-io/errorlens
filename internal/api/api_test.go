@@ -12,9 +12,9 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/rootcausehq/rootcause/internal/api"
-	"github.com/rootcausehq/rootcause/internal/config"
-	"github.com/rootcausehq/rootcause/internal/testutil"
+	"github.com/errorlenshq/errorlens/internal/api"
+	"github.com/errorlenshq/errorlens/internal/config"
+	"github.com/errorlenshq/errorlens/internal/testutil"
 )
 
 type client struct {
@@ -30,7 +30,7 @@ func newEnv(t *testing.T) (*httptest.Server, func() *client) {
 	srv.Start()
 	t.Cleanup(srv.Close)
 	cfg, err := config.Load(func(k string) string {
-		return map[string]string{"ROOTCAUSE_DATABASE_URL": "unused", "ROOTCAUSE_PUBLIC_URL": srv.URL}[k]
+		return map[string]string{"ERRORLENS_DATABASE_URL": "unused", "ERRORLENS_PUBLIC_URL": srv.URL}[k]
 	})
 	if err != nil {
 		t.Fatal(err)

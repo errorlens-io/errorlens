@@ -19,15 +19,15 @@ import (
 	"github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
 
-	"github.com/rootcausehq/rootcause/internal/api"
-	"github.com/rootcausehq/rootcause/internal/auth"
-	"github.com/rootcausehq/rootcause/internal/billing"
-	"github.com/rootcausehq/rootcause/internal/config"
-	"github.com/rootcausehq/rootcause/internal/logs"
-	"github.com/rootcausehq/rootcause/internal/process"
-	"github.com/rootcausehq/rootcause/internal/queue"
-	"github.com/rootcausehq/rootcause/internal/testutil"
-	"github.com/rootcausehq/rootcause/internal/usage"
+	"github.com/errorlenshq/errorlens/internal/api"
+	"github.com/errorlenshq/errorlens/internal/auth"
+	"github.com/errorlenshq/errorlens/internal/billing"
+	"github.com/errorlenshq/errorlens/internal/config"
+	"github.com/errorlenshq/errorlens/internal/logs"
+	"github.com/errorlenshq/errorlens/internal/process"
+	"github.com/errorlenshq/errorlens/internal/queue"
+	"github.com/errorlenshq/errorlens/internal/testutil"
+	"github.com/errorlenshq/errorlens/internal/usage"
 )
 
 // newCloudApp builds the server in hosted mode with optional extras.
@@ -37,8 +37,8 @@ func newCloudApp(t *testing.T, env map[string]string, setup func(*api.Server)) *
 	srv := httptest.NewUnstartedServer(nil)
 	srv.Start()
 	t.Cleanup(srv.Close)
-	env["ROOTCAUSE_DATABASE_URL"] = "x"
-	env["ROOTCAUSE_PUBLIC_URL"] = srv.URL
+	env["ERRORLENS_DATABASE_URL"] = "x"
+	env["ERRORLENS_PUBLIC_URL"] = srv.URL
 	cfg, err := config.Load(func(k string) string { return env[k] })
 	if err != nil {
 		t.Fatal(err)
@@ -61,7 +61,7 @@ func newCloudApp(t *testing.T, env map[string]string, setup func(*api.Server)) *
 
 func TestSignupQuotaAndAdmin(t *testing.T) {
 	var server *api.Server
-	a := newCloudApp(t, map[string]string{"ROOTCAUSE_SIGNUP_ENABLED": "true", "ROOTCAUSE_FREE_EVENT_QUOTA": "3"}, func(s *api.Server) { server = s })
+	a := newCloudApp(t, map[string]string{"ERRORLENS_SIGNUP_ENABLED": "true", "ERRORLENS_FREE_EVENT_QUOTA": "3"}, func(s *api.Server) { server = s })
 
 	code, body := a.req("POST", "/api/0/auth/signup", map[string]string{"name": "Ana", "email": "ana@example.com", "password": "a long password!", "organizationName": "Ana Co"}, nil)
 	if code != 201 {
@@ -190,7 +190,7 @@ func decodeB32(s string) ([]byte, error) {
 
 func TestStripeWebhook(t *testing.T) {
 	stripe := &billing.Stripe{SecretKey: "sk_test", WebhookSecret: "whsec_test", Plans: []billing.Plan{{ID: "team", PriceID: "price_team", Quota: 100000}}}
-	a := newCloudApp(t, map[string]string{"ROOTCAUSE_SIGNUP_ENABLED": "true"}, func(s *api.Server) { s.WithBilling(stripe) })
+	a := newCloudApp(t, map[string]string{"ERRORLENS_SIGNUP_ENABLED": "true"}, func(s *api.Server) { s.WithBilling(stripe) })
 	a.req("POST", "/api/0/auth/signup", map[string]string{"email": "b@example.com", "password": "a long password!", "organizationName": "Bee"}, nil)
 	var orgID string
 	a.db.Pool.QueryRow(context.Background(), `SELECT id::text FROM organizations`).Scan(&orgID)
@@ -254,7 +254,7 @@ func newFakeIdP(t *testing.T, email string) *fakeIdP {
 		}
 		signer, _ := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: k}, (&jose.SignerOptions{}).WithHeader("kid", "k1"))
 		tok, _ := jwt.Signed(signer).Claims(map[string]any{
-			"iss": iss, "sub": "idp-" + f.email, "aud": "rootcause", "exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			"iss": iss, "sub": "idp-" + f.email, "aud": "errorlens", "exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
 			"nonce": f.nonce, "email": f.email, "email_verified": true, "name": "Sam SSO",
 		}).Serialize()
 		w.Header().Set("Content-Type", "application/json")
@@ -266,7 +266,7 @@ func newFakeIdP(t *testing.T, email string) *fakeIdP {
 func TestOIDCLoginProvisionsIntoOrg(t *testing.T) {
 	idp := newFakeIdP(t, "sam@corp.example")
 	a := newCloudApp(t, map[string]string{}, func(s *api.Server) {
-		s.WithOIDC(&api.OIDCConfig{Issuer: idp.srv.URL, ClientID: "rootcause", ClientSecret: "s", Name: "Corp",
+		s.WithOIDC(&api.OIDCConfig{Issuer: idp.srv.URL, ClientID: "errorlens", ClientSecret: "s", Name: "Corp",
 			AllowedDomains: []string{"corp.example"}, AutoJoinOrg: "acme", DefaultRole: "member"})
 	})
 	a.req("POST", "/api/0/setup", map[string]string{"email": "o@example.com", "password": "a long password!", "organizationName": "Acme"}, nil)
@@ -295,7 +295,7 @@ func TestOIDCLoginProvisionsIntoOrg(t *testing.T) {
 	browser2 := &http.Client{Jar: jar2}
 	resp, _ = browser2.Get(a.srv.URL + "/api/0/auth/oidc/start")
 	resp.Body.Close()
-	if !strings.Contains(resp.Request.URL.Query().Get("sso_error"), "No RootCause account") {
+	if !strings.Contains(resp.Request.URL.Query().Get("sso_error"), "No ErrorLens account") {
 		t.Fatalf("evil domain not refused: %s", resp.Request.URL)
 	}
 }

@@ -16,12 +16,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/rootcausehq/rootcause/internal/alert"
-	"github.com/rootcausehq/rootcause/internal/db"
-	"github.com/rootcausehq/rootcause/internal/notify"
-	"github.com/rootcausehq/rootcause/internal/process"
-	"github.com/rootcausehq/rootcause/internal/queue"
-	"github.com/rootcausehq/rootcause/internal/testutil"
+	"github.com/errorlenshq/errorlens/internal/alert"
+	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/notify"
+	"github.com/errorlenshq/errorlens/internal/process"
+	"github.com/errorlenshq/errorlens/internal/queue"
+	"github.com/errorlenshq/errorlens/internal/testutil"
 )
 
 func TestNewIssueAndRegressionAlerts(t *testing.T) {
@@ -37,7 +37,7 @@ func TestNewIssueAndRegressionAlerts(t *testing.T) {
 		json.Unmarshal(b, &m)
 		mu.Lock()
 		got = append(got, m)
-		sigs = append(sigs, r.Header.Get("X-RootCause-Signature"))
+		sigs = append(sigs, r.Header.Get("X-ErrorLens-Signature"))
 		mu.Unlock()
 	}))
 	defer hook.Close()

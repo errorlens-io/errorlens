@@ -1,4 +1,4 @@
-// Package config loads RootCause's runtime configuration from environment variables.
+// Package config loads ErrorLens's runtime configuration from environment variables.
 package config
 
 import (
@@ -65,31 +65,31 @@ func Load(getenv func(string) string) (*Config, error) {
 	}
 
 	cfg := &Config{
-		DatabaseURL: get("ROOTCAUSE_DATABASE_URL", ""),
-		ListenAddr:  get("ROOTCAUSE_LISTEN_ADDR", ":8080"),
+		DatabaseURL: get("ERRORLENS_DATABASE_URL", ""),
+		ListenAddr:  get("ERRORLENS_LISTEN_ADDR", ":8080"),
 	}
 	if cfg.DatabaseURL == "" {
-		return nil, errors.New("ROOTCAUSE_DATABASE_URL is required")
+		return nil, errors.New("ERRORLENS_DATABASE_URL is required")
 	}
 
-	pub, err := url.Parse(get("ROOTCAUSE_PUBLIC_URL", "http://localhost:8080"))
+	pub, err := url.Parse(get("ERRORLENS_PUBLIC_URL", "http://localhost:8080"))
 	if err != nil || (pub.Scheme != "http" && pub.Scheme != "https") || pub.Host == "" {
-		return nil, fmt.Errorf("ROOTCAUSE_PUBLIC_URL must be an absolute http(s) URL")
+		return nil, fmt.Errorf("ERRORLENS_PUBLIC_URL must be an absolute http(s) URL")
 	}
 	pub.Path = strings.TrimRight(pub.Path, "/")
 	cfg.PublicURL = pub
 
-	if err := cfg.LogLevel.UnmarshalText([]byte(get("ROOTCAUSE_LOG_LEVEL", "info"))); err != nil {
-		return nil, fmt.Errorf("ROOTCAUSE_LOG_LEVEL: %w", err)
+	if err := cfg.LogLevel.UnmarshalText([]byte(get("ERRORLENS_LOG_LEVEL", "info"))); err != nil {
+		return nil, fmt.Errorf("ERRORLENS_LOG_LEVEL: %w", err)
 	}
 
-	ttl, err := time.ParseDuration(get("ROOTCAUSE_SESSION_TTL", "336h"))
+	ttl, err := time.ParseDuration(get("ERRORLENS_SESSION_TTL", "336h"))
 	if err != nil || ttl < time.Minute {
-		return nil, fmt.Errorf("ROOTCAUSE_SESSION_TTL must be a duration of at least 1m")
+		return nil, fmt.Errorf("ERRORLENS_SESSION_TTL must be a duration of at least 1m")
 	}
 	cfg.SessionTTL = ttl
 
-	for _, s := range strings.Split(get("ROOTCAUSE_TRUSTED_PROXIES", ""), ",") {
+	for _, s := range strings.Split(get("ERRORLENS_TRUSTED_PROXIES", ""), ",") {
 		if s = strings.TrimSpace(s); s == "" {
 			continue
 		}
@@ -102,29 +102,29 @@ func Load(getenv func(string) string) (*Config, error) {
 		}
 		_, n, err := net.ParseCIDR(s)
 		if err != nil {
-			return nil, fmt.Errorf("ROOTCAUSE_TRUSTED_PROXIES: invalid network %q", s)
+			return nil, fmt.Errorf("ERRORLENS_TRUSTED_PROXIES: invalid network %q", s)
 		}
 		cfg.TrustedProxies = append(cfg.TrustedProxies, n)
 	}
 
-	cfg.AllowPrivateWebhooks = isTrue(get("ROOTCAUSE_ALLOW_PRIVATE_WEBHOOKS", "false"))
-	cfg.SignupEnabled = isTrue(get("ROOTCAUSE_SIGNUP_ENABLED", "false"))
-	cfg.EncryptionKey = get("ROOTCAUSE_ENCRYPTION_KEY", "")
-	q, err := strconv.ParseInt(get("ROOTCAUSE_FREE_EVENT_QUOTA", "5000"), 10, 64)
+	cfg.AllowPrivateWebhooks = isTrue(get("ERRORLENS_ALLOW_PRIVATE_WEBHOOKS", "false"))
+	cfg.SignupEnabled = isTrue(get("ERRORLENS_SIGNUP_ENABLED", "false"))
+	cfg.EncryptionKey = get("ERRORLENS_ENCRYPTION_KEY", "")
+	q, err := strconv.ParseInt(get("ERRORLENS_FREE_EVENT_QUOTA", "5000"), 10, 64)
 	if err != nil || q < 0 {
-		return nil, fmt.Errorf("ROOTCAUSE_FREE_EVENT_QUOTA must be a non-negative number")
+		return nil, fmt.Errorf("ERRORLENS_FREE_EVENT_QUOTA must be a non-negative number")
 	}
 	cfg.FreeEventQuota = q
 
 	cfg.SMTP = SMTP{
-		Host:     get("ROOTCAUSE_SMTP_HOST", ""),
-		Username: get("ROOTCAUSE_SMTP_USERNAME", ""),
-		Password: get("ROOTCAUSE_SMTP_PASSWORD", ""),
-		From:     get("ROOTCAUSE_SMTP_FROM", "RootCause <rootcause@localhost>"),
+		Host:     get("ERRORLENS_SMTP_HOST", ""),
+		Username: get("ERRORLENS_SMTP_USERNAME", ""),
+		Password: get("ERRORLENS_SMTP_PASSWORD", ""),
+		From:     get("ERRORLENS_SMTP_FROM", "ErrorLens <errorlens@localhost>"),
 	}
-	port, err := strconv.Atoi(get("ROOTCAUSE_SMTP_PORT", "587"))
+	port, err := strconv.Atoi(get("ERRORLENS_SMTP_PORT", "587"))
 	if err != nil || port <= 0 || port > 65535 {
-		return nil, fmt.Errorf("ROOTCAUSE_SMTP_PORT must be a port number")
+		return nil, fmt.Errorf("ERRORLENS_SMTP_PORT must be a port number")
 	}
 	cfg.SMTP.Port = port
 

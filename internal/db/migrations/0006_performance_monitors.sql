@@ -23,7 +23,7 @@ CREATE INDEX transactions_trace_idx ON transactions (trace_id);
 CREATE TABLE transactions_default PARTITION OF transactions DEFAULT;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY transactions_tenant ON transactions USING (org_id = app_org_id()) WITH CHECK (org_id = app_org_id());
-GRANT SELECT, INSERT, DELETE ON transactions TO rootcause_app;
+GRANT SELECT, INSERT, DELETE ON transactions TO errorlens_app;
 
 -- Errors carry the trace they happened in, for the trace view.
 CREATE INDEX events_trace_idx ON events ((tags->>'trace_id')) WHERE tags ? 'trace_id';
@@ -74,6 +74,6 @@ ALTER TABLE monitors ENABLE ROW LEVEL SECURITY;
 CREATE POLICY monitors_tenant ON monitors USING (org_id = app_org_id()) WITH CHECK (org_id = app_org_id());
 ALTER TABLE monitor_checkins ENABLE ROW LEVEL SECURITY;
 CREATE POLICY monitor_checkins_tenant ON monitor_checkins USING (org_id = app_org_id()) WITH CHECK (org_id = app_org_id());
-GRANT SELECT, INSERT, UPDATE, DELETE ON monitors, monitor_checkins TO rootcause_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON monitors, monitor_checkins TO errorlens_app;
 
 ALTER TABLE alert_history ADD COLUMN monitor_id uuid REFERENCES monitors (id) ON DELETE CASCADE;

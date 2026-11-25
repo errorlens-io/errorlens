@@ -1,4 +1,4 @@
-// Thin client for RootCause's JSON API. Cookies carry the session.
+// Thin client for ErrorLens's JSON API. Cookies carry the session.
 
 export type User = { id: string; email: string; name: string; isSuperuser: boolean; emailVerified: boolean };
 export type Organization = { id: string; name: string; slug: string; role: string };
