@@ -62,6 +62,18 @@ for i in $(seq 1 30); do
   docker exec errorlens /usr/local/bin/errorlens version >/dev/null 2>&1 && break; sleep 2
 done
 if ! cmp -s errorlens.caddy "$EDGE_CONFIG/errorlens.caddy"; then
+  # The edge Caddy serves other sites too: never restart it with a config
+  # that doesn't validate.
+  EDGE_FILE=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/etc/caddy/Caddyfile"}}{{.Source}}{{end}}{{end}}' "$EDGE_CADDY")
+  T=$(mktemp -d)
+  cp -a "$EDGE_CONFIG/." "$T/" && cp errorlens.caddy "$T/errorlens.caddy"
+  if ! docker run --rm -v "$EDGE_FILE:/etc/caddy/Caddyfile:ro" -v "$T:/config:ro" caddy:2-alpine \
+      caddy validate --config /etc/caddy/Caddyfile >"$T.log" 2>&1; then
+    tail -5 "$T.log"; rm -rf "$T" "$T.log"
+    echo "edge config does not validate; route NOT installed" >&2
+    exit 1
+  fi
+  rm -rf "$T" "$T.log"
   cp errorlens.caddy "$EDGE_CONFIG/errorlens.caddy"
   docker restart "$EDGE_CADDY" >/dev/null
   echo "route installed; restarted $EDGE_CADDY"
