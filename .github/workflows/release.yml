@@ -69,3 +69,16 @@ jobs:
             COMMIT=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # supply-chain attestations shown on Docker Hub and checkable with `docker buildx imagetools inspect`
+          provenance: mode=max
+          sbom: true
+
+      - name: Docker Hub page
+        if: steps.dockerhub.outcome == 'success' && startsWith(github.ref, 'refs/tags/v')
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: errorlens/errorlens
+          short-description: "Open-source error tracking, performance monitoring and logs. One container plus Postgres."
+          readme-filepath: deploy/DOCKERHUB.md

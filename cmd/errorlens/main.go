@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -49,6 +50,7 @@ Commands:
   serve     Run the server (applies migrations first unless -no-migrate)
   migrate   Apply database migrations and exit
   version   Print version information
+  healthcheck  Exit 0 if the local server answers /healthz (used by the Docker image)
   sourcemaps upload   Upload JavaScript source maps for a release (see --help)
   demo --dsn DSN      Send realistic sample data to a project
 
@@ -98,6 +100,8 @@ func run(args []string) error {
 			}
 			return serve(ctx, cfg, d, log, *role)
 		})
+	case "healthcheck":
+		return healthcheck()
 	case "sourcemaps":
 		return sourcemapsCmd(args[1:])
 	case "demo":
@@ -242,4 +246,30 @@ func serve(ctx context.Context, cfg *config.Config, d *db.DB, log *slog.Logger, 
 	err = srv.Shutdown(shutdownCtx)
 	wg.Wait()
 	return err
+}
+
+// healthcheck asks the local server's /healthz; the container image has no shell or curl, so Docker's
+// HEALTHCHECK runs the binary itself. Exits non-zero when the server doesn't answer 200 within 3 seconds.
+func healthcheck() error {
+	addr := os.Getenv("ERRORLENS_LISTEN_ADDR")
+	if addr == "" {
+		addr = ":8080"
+	}
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return fmt.Errorf("healthcheck: bad ERRORLENS_LISTEN_ADDR %q", addr)
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get("http://" + net.JoinHostPort(host, port) + "/healthz")
+	if err != nil {
+		return fmt.Errorf("healthcheck: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("healthcheck: status %d", resp.StatusCode)
+	}
+	return nil
 }

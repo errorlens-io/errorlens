@@ -6,3 +6,15 @@ web/dist
 *.md
 !README.md
 .env
+
+# not part of the server image
+site
+sdks
+docs
+deploy/helm
+**/node_modules
+**/.next
+**/out
+*.log
+.github
+.DS_Store
