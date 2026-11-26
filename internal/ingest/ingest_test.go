@@ -233,6 +233,15 @@ func TestAuthFailures(t *testing.T) {
 	if resp, _ := f.post(t, fmt.Sprintf("/api/%d/envelope/", f.seq), []byte("not json\n"), authHeader(f.key)); resp.StatusCode != 400 {
 		t.Errorf("bad envelope = %d", resp.StatusCode)
 	}
+
+	// Hand-written clients can pass the key as a header or a ?key= parameter.
+	if resp, body := f.post(t, fmt.Sprintf("/api/%d/store/", f.seq), []byte(eventJSON(strings.Repeat("2", 32), "via header")),
+		map[string]string{"X-ErrorLens-Key": f.key}); resp.StatusCode != 200 {
+		t.Errorf("X-ErrorLens-Key = %d (%s)", resp.StatusCode, body)
+	}
+	if resp, body := f.post(t, fmt.Sprintf("/api/%d/store/?key=%s", f.seq, f.key), []byte(eventJSON(strings.Repeat("3", 32), "via query")), nil); resp.StatusCode != 200 {
+		t.Errorf("?key= = %d (%s)", resp.StatusCode, body)
+	}
 }
 
 func TestParseEnvelopeWithoutLength(t *testing.T) {

@@ -345,7 +345,13 @@ func (h *Handler) authenticate(r *http.Request, envelopeKey string) (*projectKey
 		public = keyFromAuthHeader(r.Header.Get("Authorization"))
 	}
 	if public == "" {
+		public = strings.TrimSpace(r.Header.Get("X-ErrorLens-Key")) // for hand-written clients
+	}
+	if public == "" {
 		public = r.URL.Query().Get(paramPublicKey)
+	}
+	if public == "" {
+		public = r.URL.Query().Get("key")
 	}
 	if public == "" {
 		public = envelopeKey

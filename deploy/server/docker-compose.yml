@@ -5,6 +5,7 @@
 #   /srv/errorlens/docker-compose.yml   this file
 #   /srv/errorlens/.env                 POSTGRES_PASSWORD, ERRORLENS_ENCRYPTION_KEY, ...
 #   /srv/errorlens/pgdata               database files
+#   /srv/errorlens/site                 the built website (site/out)
 #   errorlens.caddy                     copied into the edge Caddy's /config
 name: errorlens
 
@@ -50,6 +51,17 @@ services:
       # Requests arrive from the edge Caddy on the docker network.
       ERRORLENS_TRUSTED_PROXIES: 172.16.0.0/12
     networks: [default, edge]
+    logging: *logging
+
+  # The static website (home, docs, legal) built from site/ by deploy.sh.
+  errorlens-site:
+    image: caddy:2-alpine
+    container_name: errorlens-site
+    restart: unless-stopped
+    volumes:
+      - ./site.Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./site:/srv/site:ro
+    networks: [edge]
     logging: *logging
 
 networks:

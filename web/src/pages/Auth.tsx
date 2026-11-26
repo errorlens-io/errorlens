@@ -117,9 +117,15 @@ export function SignupPage({ onDone, Brand }: Props) {
         {tenantDomainName() && f.organizationName && (
           <p className="muted small">Your dashboard: <b>{previewSlug(f.organizationName)}.{tenantDomainName()}</b></p>
         )}
+        {tenantDomainName() && (
+          <p className="muted small">
+            By creating an account you agree to the <a className="link" href="/terms/" target="_blank" rel="noopener">Terms of Service</a> and{" "}
+            <a className="link" href="/privacy/" target="_blank" rel="noopener">Privacy Policy</a>.
+          </p>
+        )}
         {form.error && <p className="error">{form.error}</p>}
         <button disabled={form.busy}>{form.busy ? "Creating…" : "Create account"}</button>
-        <button type="button" className="ghost" onClick={() => navigate("/")}>I already have an account</button>
+        <button type="button" className="ghost" onClick={() => navigate("/login")}>I already have an account</button>
       </form>
     </div>
   );

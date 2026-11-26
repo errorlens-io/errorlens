@@ -93,7 +93,7 @@ def init(
         "before_send": _brand(before_send),
         # Privacy-first defaults (callers may override).
         "send_default_pii": False,
-        # ErrorLens does not ingest performance data yet.
+        # Performance tracing is opt-in: pass traces_sample_rate to enable it.
         "traces_sample_rate": None,
     }
     opts.update(options)

@@ -32,9 +32,14 @@ if [ "$MODE" = "--local" ]; then
   docker save "$IMAGE" | gzip -1 | ssh "$HOST" 'gunzip | docker load'
 fi
 
-ssh "$HOST" 'mkdir -p /srv/errorlens && chmod 700 /srv/errorlens'
+# The website is static: build it here and copy the files.
+(cd "$ROOT/site" && npm ci --silent && npm run build --silent)
+
+ssh "$HOST" 'mkdir -p /srv/errorlens/site && chmod 700 /srv/errorlens && chmod 755 /srv/errorlens/site'
 scp -q "$DIR/docker-compose.yml" "$HOST:/srv/errorlens/docker-compose.yml"
 scp -q "$DIR/errorlens.caddy" "$HOST:/srv/errorlens/errorlens.caddy"
+scp -q "$DIR/site.Caddyfile" "$HOST:/srv/errorlens/site.Caddyfile"
+rsync -a --delete "$ROOT/site/out/" "$HOST:/srv/errorlens/site/"
 ssh "$HOST" EDGE_NETWORK="$EDGE_NETWORK" IMAGE="$IMAGE" PULL="$PULL" EDGE_CADDY="$EDGE_CADDY" EDGE_CONFIG="$EDGE_CONFIG" 'bash -s' <<'REMOTE'
 set -euo pipefail
 cd /srv/errorlens
