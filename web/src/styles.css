@@ -327,3 +327,45 @@ a.seg.on { background: var(--accent); color: var(--accent-text); }
 
 /* Brand name: "Lens" in the logo gradient */
 .brand-lens { background: linear-gradient(90deg, #3B82F6, #8B5CF6); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* --- instance admin ------------------------------------------------------------------------ */
+.admin-intro { margin: -4px 0 16px; max-width: 70ch; }
+.admin-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.admin-stats .stat strong { font-size: 1.35rem; }
+.admin-orgs-wrap { overflow-x: auto; }
+.admin-orgs { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.admin-orgs th { text-align: left; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding: 10px 14px; white-space: nowrap; border-bottom: 1px solid var(--border); }
+.admin-orgs td { padding: 12px 14px; vertical-align: top; border-bottom: 1px solid var(--border); }
+.admin-orgs tr:last-child td { border-bottom: 0; }
+.admin-orgs .num { text-align: right; font-variant-numeric: tabular-nums; }
+.admin-orgs .row-actions { text-align: right; white-space: nowrap; }
+.admin-orgs .org-name { display: block; font-weight: 600; font-size: 0.95rem; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--text); font: inherit; cursor: pointer; text-align: left; }
+.link-btn:hover { color: var(--accent); text-decoration: underline; }
+.badge.plan-badge { font-size: 0.75rem; text-transform: none; color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.quota-bar { margin-top: 6px; height: 5px; width: 140px; max-width: 100%; border-radius: 999px; background: color-mix(in srgb, var(--muted) 20%, transparent); overflow: hidden; }
+.quota-bar span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.quota-bar.high span { background: #d97706; }
+.quota-bar.full span { background: var(--danger); }
+button.small { font-size: 0.8rem; padding: 5px 12px; }
+.dialog-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, 0.45); }
+.dialog { width: min(440px, 100%); display: flex; flex-direction: column; gap: 14px; padding: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35); }
+.dialog h2 { margin: 0; font-size: 1.1rem; text-transform: none; letter-spacing: 0; color: var(--text); }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.quota-choice { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.quota-choice legend { font-size: 0.875rem; font-weight: 500; padding: 0 4px; }
+.quota-choice p { margin: 0; }
+label.inline { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
+label.inline input { width: auto; }
+@media (max-width: 720px) {
+  .admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* the table becomes one card per organization */
+  .admin-orgs thead { display: none; }
+  .admin-orgs, .admin-orgs tbody, .admin-orgs tr, .admin-orgs td { display: block; width: 100%; }
+  .admin-orgs tr { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .admin-orgs tr:last-child { border-bottom: 0; }
+  .admin-orgs td { border: 0; padding: 4px 0; text-align: left; }
+  .admin-orgs td.num { text-align: left; }
+  .admin-orgs td[data-label]:not([data-label="Organization"])::before { content: attr(data-label); display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+  .admin-orgs td.row-actions { text-align: left; padding-top: 8px; }
+}
