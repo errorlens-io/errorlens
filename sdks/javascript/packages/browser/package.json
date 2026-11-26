@@ -1,6 +1,6 @@
 {
   "name": "@errorlens/browser",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Browser SDK for ErrorLens, the open-source, self-hosted error tracker.",
   "license": "MIT",
   "homepage": "https://errorlens.io",
