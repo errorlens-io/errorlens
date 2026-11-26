@@ -146,3 +146,6 @@ pre.term { background: var(--code-bg); color: #e5e7eb; border: 1px solid var(--l
   .footer-grid { grid-template-columns: 1fr 1fr; }
   .hero { padding-top: 56px; }
 }
+
+/* Brand name: "Lens" in the logo gradient */
+.brand-lens { background: linear-gradient(90deg, #3B82F6, #8B5CF6); -webkit-background-clip: text; background-clip: text; color: transparent; }

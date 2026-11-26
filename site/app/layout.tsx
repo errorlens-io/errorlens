@@ -7,8 +7,9 @@ export const metadata: Metadata = {
   title: { default: "ErrorLens — private error tracking, performance and logs", template: "%s · ErrorLens" },
   description:
     "Open-source error tracking, performance monitoring, logs and uptime checks. Secrets are scrubbed before anything is stored. Use our hosted service or run it on your own servers.",
-  icons: { icon: "/favicon.svg" },
-  openGraph: { siteName: "ErrorLens", type: "website" },
+  icons: { icon: "/favicon.svg", apple: "/apple-touch-icon.png" },
+  openGraph: { siteName: "ErrorLens", type: "website", images: [{ url: "/og.png", width: 1280, height: 440, alt: "ErrorLens" }] },
+  twitter: { card: "summary_large_image", images: ["/og.png"] },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -19,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="wrap header-row">
             <Link href="/" className="logo">
               <img src="/favicon.svg" alt="" width={26} height={26} />
-              <span>ErrorLens</span>
+              <span>Error<span className="brand-lens">Lens</span></span>
             </Link>
             <nav className="main-nav" aria-label="Main">
               <Link href="/docs/">Docs</Link>
@@ -39,7 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div>
               <div className="logo small">
                 <img src="/favicon.svg" alt="" width={20} height={20} />
-                <span>ErrorLens</span>
+                <span>Error<span className="brand-lens">Lens</span></span>
               </div>
               <p className="muted">Your errors, your servers, your eyes only.</p>
             </div>
