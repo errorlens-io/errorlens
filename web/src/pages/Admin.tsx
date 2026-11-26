@@ -31,7 +31,7 @@ export function AdminPage() {
       <p className="muted admin-intro">
         Every organization on this server, with its plan and how many error events it sent this month.{" "}
         {catalog && (catalog.hosted
-          ? "Each plan comes with its own monthly limit."
+          ? "Every plan here has a monthly limit; only self-hosted servers have none."
           : "This is a self-hosted server: organizations have no limit.")}{" "}
         Only instance administrators can see this page.
       </p>
@@ -110,9 +110,9 @@ export function AdminPage() {
 
 function PlanDialog({ org, plans, onClose, onSaved }: { org: AdminOrg; plans: AdminPlan[]; onClose: () => void; onSaved: () => void }) {
   const current = plans.find((p) => p.id === org.plan);
-  // an org on a plan this server no longer offers starts on the closest one: no limit stays no limit
-  const closest = plans.find((p) => (p.quota === null) === (org.quota === null)) ?? plans[0];
-  const [plan, setPlan] = useState(current?.id ?? closest?.id ?? "");
+  // an org on a plan that can't be chosen here (e.g. no limit on the hosted service) has nothing preselected,
+  // so a quick Save can never change its limit by accident
+  const [plan, setPlan] = useState(current?.id ?? "");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -138,7 +138,12 @@ function PlanDialog({ org, plans, onClose, onSaved }: { org: AdminOrg; plans: Ad
     <div className="dialog-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <form className="dialog card" role="dialog" aria-modal="true" aria-labelledby="plan-title" onSubmit={save}>
         <h2 id="plan-title">Change plan for {org.name}</h2>
-        {!current && <p className="muted small">Currently on “{org.plan}”, which this server doesn't offer any more.</p>}
+        {!current && (
+          <p className="muted small">
+            Currently on “{org.plan}”{org.quota === null ? " with no limit" : ""}, which can't be chosen here. Pick a plan to
+            move it.
+          </p>
+        )}
         <div className="plan-options" role="radiogroup" aria-label="Plan">
           {plans.map((p) => (
             <label key={p.id} className={`plan-option${plan === p.id ? " selected" : ""}`}>
@@ -160,7 +165,7 @@ function PlanDialog({ org, plans, onClose, onSaved }: { org: AdminOrg; plans: Ad
         {error && <p className="error">{error}</p>}
         <div className="dialog-actions">
           <button type="button" className="ghost" onClick={onClose}>Cancel</button>
-          <button type="submit" disabled={saving || plan === org.plan}>{saving ? "Saving…" : "Save"}</button>
+          <button type="submit" disabled={saving || !plan || plan === org.plan}>{saving ? "Saving…" : "Save"}</button>
         </div>
       </form>
     </div>

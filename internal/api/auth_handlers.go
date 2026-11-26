@@ -168,13 +168,14 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		if err := db.ApplyScope(ctx, tx, db.Scope{OrgID: orgID, UserID: userID}); err != nil {
 			return err
 		}
-		// the first organization belongs to whoever runs the server: no limit on either kind of server
-		firstPlan := "self-hosted"
+		// No limit exists only on self-hosted servers; on the hosted service every organization, the first
+		// one included, has a plan with a limit.
+		firstPlan, firstQuota := "self-hosted", (*int64)(nil)
 		if s.hosted() {
-			firstPlan = "unlimited"
+			firstPlan, firstQuota = "free", &s.cfg.FreeEventQuota
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO organizations (id, name, slug, plan) VALUES ($1, $2, $3, $4)`,
-			orgID, req.OrganizationName, slug, firstPlan); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO organizations (id, name, slug, plan, monthly_event_quota) VALUES ($1, $2, $3, $4, $5)`,
+			orgID, req.OrganizationName, slug, firstPlan, firstQuota); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')`,

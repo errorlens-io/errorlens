@@ -115,8 +115,11 @@ func TestSignupQuotaAndAdmin(t *testing.T) {
 	// Hosted mode: plans come from a catalog and set their own quota.
 	_, body = a.req("GET", "/api/0/admin/plans", nil, nil)
 	if !strings.Contains(string(body), `"hosted":true`) || !strings.Contains(string(body), `"id":"free","label":"Free","quota":3`) ||
-		!strings.Contains(string(body), `"id":"unlimited"`) || strings.Contains(string(body), `"self-hosted"`) {
+		strings.Contains(string(body), `"unlimited"`) || strings.Contains(string(body), `"self-hosted"`) || strings.Contains(string(body), `"quota":null`) {
 		t.Fatalf("hosted plans = %s", body)
+	}
+	if code, _ := a.req("PUT", "/api/0/admin/organizations/"+orgs[0].ID, map[string]any{"plan": "unlimited"}, nil); code != 400 {
+		t.Fatalf("unlimited plan on the hosted service = %d", code)
 	}
 	if code, _ := a.req("PUT", "/api/0/admin/organizations/"+orgs[0].ID, map[string]any{"plan": "team"}, nil); code != 400 {
 		t.Fatalf("unknown plan = %d", code)
@@ -124,16 +127,11 @@ func TestSignupQuotaAndAdmin(t *testing.T) {
 	if code, _ := a.req("PUT", "/api/0/admin/organizations/"+orgs[0].ID, map[string]any{"plan": "self-hosted"}, nil); code != 400 {
 		t.Fatalf("self-hosted plan on the hosted service = %d", code)
 	}
-	// a quota sent along is ignored: the plan decides
-	if code, _ := a.req("PUT", "/api/0/admin/organizations/"+orgs[0].ID, map[string]any{"plan": "unlimited", "quota": 5}, nil); code != 200 {
+	// a quota sent along is ignored: the plan decides (and no quota can be removed)
+	if code, _ := a.req("PUT", "/api/0/admin/organizations/"+orgs[0].ID, map[string]any{"plan": "free", "quota": nil}, nil); code != 200 {
 		t.Fatalf("admin update = %d", code)
 	}
 	var quota *int64
-	a.db.Pool.QueryRow(context.Background(), `SELECT monthly_event_quota FROM organizations WHERE id = $1`, orgs[0].ID).Scan(&quota)
-	if quota != nil {
-		t.Fatalf("unlimited plan kept quota %d", *quota)
-	}
-	a.req("PUT", "/api/0/admin/organizations/"+orgs[0].ID, map[string]any{"plan": "free"}, nil)
 	a.db.Pool.QueryRow(context.Background(), `SELECT monthly_event_quota FROM organizations WHERE id = $1`, orgs[0].ID).Scan(&quota)
 	if quota == nil || *quota != 3 {
 		t.Fatalf("free plan quota = %v", quota)
@@ -345,13 +343,14 @@ func TestOIDCLoginProvisionsIntoOrg(t *testing.T) {
 	}
 }
 
-func TestHostedFirstOrganizationIsUnlimited(t *testing.T) {
-	a := newCloudApp(t, map[string]string{"ERRORLENS_SIGNUP_ENABLED": "true"}, nil)
+// No limit exists only on self-hosted servers: on the hosted service even the first organization has one.
+func TestHostedFirstOrganizationHasALimit(t *testing.T) {
+	a := newCloudApp(t, map[string]string{"ERRORLENS_SIGNUP_ENABLED": "true", "ERRORLENS_FREE_EVENT_QUOTA": "7"}, nil)
 	a.req("POST", "/api/0/setup", map[string]string{"email": "o@example.com", "password": "a long password!", "organizationName": "Acme"}, nil)
 	var plan string
 	var quota *int64
 	a.db.Pool.QueryRow(context.Background(), `SELECT plan, monthly_event_quota FROM organizations`).Scan(&plan, &quota)
-	if plan != "unlimited" || quota != nil {
+	if plan != "free" || quota == nil || *quota != 7 {
 		t.Fatalf("first hosted organization = %s %v", plan, quota)
 	}
 }

@@ -295,8 +295,8 @@ func (s *Server) hosted() bool {
 	return s.cfg.SignupEnabled || s.cfg.TenantDomain != ""
 }
 
-// planCatalog lists the plans for this server. Self-hosted servers have one plan with no limit; the hosted
-// service has Free (the sign-up quota), the paid plans from billing, and Unlimited for internal organizations.
+// planCatalog lists the plans an administrator can assign. Self-hosted servers have one plan with no limit; the
+// hosted service has Free (the sign-up quota) and the paid plans from billing. Every hosted plan has a limit.
 func (s *Server) planCatalog() []adminPlan {
 	if !s.hosted() {
 		return []adminPlan{{ID: "self-hosted", Label: "Self-hosted", Note: "Your own server: no limit."}}
@@ -309,7 +309,8 @@ func (s *Server) planCatalog() []adminPlan {
 			plans = append(plans, adminPlan{ID: p.ID, Label: p.Label, Quota: &q, Note: "Paid plan, billed through Stripe."})
 		}
 	}
-	return append(plans, adminPlan{ID: "unlimited", Label: "Unlimited", Note: "For your own and partner organizations; not sold."})
+	// No unlimited plan to choose from: only the server owner's first organization has no limit.
+	return plans
 }
 
 func (s *Server) adminPlans(w http.ResponseWriter, _ *http.Request) {
