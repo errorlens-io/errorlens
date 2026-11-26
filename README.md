@@ -23,7 +23,7 @@ ErrorLens runs entirely on your infrastructure. It works with the error-reportin
 ## Quick start (Docker Compose)
 
 ```bash
-git clone https://github.com/errorlens-io/errorlens.git
+git clone https://github.com/errorlenshq/errorlens.git
 cd errorlens
 cp deploy/.env.example deploy/.env    # set a strong POSTGRES_PASSWORD
 docker compose -f deploy/docker-compose.yml up -d --build
@@ -45,12 +45,14 @@ import errorlens
 errorlens.init(dsn="https://<key>@errors.example.com/1", release="app@1.0.0", environment="production")
 ```
 
-**Node.js**: `npm install @errorlens/node` · **Browser**: `npm install @errorlens/browser`
+**Node.js**: `npm install @errorlenshq/node` · **Browser**: `npm install @errorlenshq/browser`
 
 ```js
-import * as ErrorLens from "@errorlens/node";
+import * as ErrorLens from "@errorlenshq/node";
 ErrorLens.init({ dsn: "https://<key>@errors.example.com/1", release: "app@1.0.0" });
 ```
+
+The SDKs have no dependencies and live in their own repositories: [errorlens-python](https://github.com/errorlenshq/errorlens-python) and [errorlens-javascript](https://github.com/errorlenshq/errorlens-javascript).
 
 Other languages: any client that speaks the standard error-envelope protocol works with the DSN.
 
@@ -128,4 +130,4 @@ logs and transactions are stored in daily partitions so retention is a cheap `DR
 
 ## License
 
-[AGPL-3.0](LICENSE). The SDK packages in [`sdks/`](sdks) are MIT.
+[AGPL-3.0](LICENSE). The SDKs are MIT.

@@ -11,7 +11,7 @@ order: 1
 pip install errorlens
 ```
 
-Python 3.9 or newer is supported.
+Python 3.9 or newer is supported. The package has no dependencies.
 
 ## Configure
 
@@ -41,7 +41,7 @@ errorlens.init()  # reads the variables above
 
 Without a DSN the SDK does nothing, so it is safe to call `init()` in tests and local development.
 
-Django, Flask, FastAPI, Starlette, Celery, RQ, SQLAlchemy, Redis and the standard `logging` module are detected automatically — there is nothing else to set up.
+Django, Flask, FastAPI, Starlette, Celery, SQLAlchemy, httpx, `urllib`/`http.client` and the standard `logging` module are detected automatically — there is nothing else to set up. Each web request and Celery task gets its own context, so a user or tag set while handling one request never appears on another's errors.
 
 ## Report errors
 
@@ -81,26 +81,49 @@ Tracing is off by default. Turn it on with a sample rate between `0` and `1` (th
 errorlens.init(dsn="…", traces_sample_rate=0.2)
 ```
 
-Requests in supported frameworks, plus their database queries and outgoing HTTP calls, then appear on the [Performance](/docs/performance/) page.
+Requests in supported frameworks, plus their database queries and outgoing HTTP calls, then appear on the [Performance](/docs/performance/) page. Outgoing requests carry a W3C `traceparent` header, so a request that passes through several services — Python, Node.js or the browser — shows up as one trace.
+
+To time work no integration covers, such as a script or a job:
+
+```python
+with errorlens.start_transaction("nightly-export", op="task"):
+    with errorlens.start_span("db.query", "load rows"):
+        rows = load_rows()
+```
 
 ## Logs
 
-Send records from Python's standard `logging` module as ErrorLens logs:
+Turn logs on with `enable_logs=True`. Then use the structured logger, whose `{placeholders}` become searchable attributes:
+
+```python
+errorlens.init(dsn="…", enable_logs=True)
+errorlens.logger.info("Order {order_id} paid", order_id=42, amount=19.99)
+```
+
+Records from Python's standard `logging` module are sent too:
 
 ```python
 import logging
-
-errorlens.init(dsn="…", enable_logs=True)
 logging.getLogger("checkout").warning("Inventory low for SKU %s", sku)
 ```
 
-They appear on the [Logs](/docs/logs/) page, linked to the trace they belong to when tracing is on.
+They appear on the [Logs](/docs/logs/) page, linked to the trace they belong to when tracing is on. Logs are batched and sent in the background.
 
-Logs need version 3 or newer of the SDK's core dependency, which a fresh `pip install errorlens` installs. If you pinned an older one, upgrade it or send logs with [OpenTelemetry](/docs/opentelemetry/).
+## Cron monitors
+
+Report each run of a scheduled job; you're alerted when a run fails, runs too long, or doesn't happen. The monitor is created from your code:
+
+```python
+@errorlens.monitor("nightly-backup", schedule="0 2 * * *", max_runtime=30)
+def backup():
+    ...
+```
+
+`monitor` also works as a context manager (`with errorlens.monitor("nightly-backup"):`) and on `async` functions. See [Cron monitors](/docs/cron-monitors/).
 
 ## Privacy
 
-The SDK does **not** send personal data — IP addresses, cookies or request bodies — unless you opt in with `send_default_pii=True`. Whatever it does send, the ErrorLens server [scrubs secrets again](/docs/data-scrubbing/) before storing anything.
+The SDK does **not** send personal data — IP addresses, cookies or request bodies — unless you opt in with `send_default_pii=True`. Passwords, tokens, API keys, cookies and similar values are removed in your app before anything is sent (add your own field names with `scrub_fields`), and the ErrorLens server [scrubs secrets again](/docs/data-scrubbing/) before storing anything.
 
 To change or drop an event before it leaves your app, use `before_send`:
 
@@ -125,14 +148,20 @@ errorlens.flush(timeout=5)
 
 | Function | Purpose |
 |---|---|
-| `init(dsn, release, environment, before_send, **options)` | Start the SDK |
+| `init(dsn, **options)` | Start the SDK |
 | `capture_exception(error=None)` | Report an exception (the current one if omitted) |
 | `capture_message(message, level="info")` | Report a message |
 | `capture_event(event)` | Send a raw event |
 | `set_user`, `set_tag`, `set_tags`, `set_context`, `set_extra` | Attach context |
-| `add_breadcrumb(...)` | Record a step that led up to an error |
+| `add_breadcrumb(category=, message=, level=, data=)` | Record a step that led up to an error |
+| `start_transaction(name, op)`, `start_span(op, description)` | Time work |
+| `get_traceparent()` | Header value for an outgoing request |
+| `logger.info(...)` etc. | Structured logs |
+| `monitor(slug, schedule=...)`, `capture_checkin(...)` | Cron monitors |
 | `new_scope()`, `isolation_scope()` | Context managers for temporary context |
 | `flush(timeout)` | Wait until queued events are sent |
 | `last_event_id()` | The ID of the last event sent |
 
-Other keyword arguments to `init` are passed to the underlying client; options it doesn't support are ignored.
+Useful `init` options: `sample_rate`, `traces_sample_rate` or `traces_sampler`, `enable_logs`, `send_default_pii`, `scrub_fields`, `ignore_errors`, `before_send`, `before_send_transaction`, `before_breadcrumb`, `before_send_log`, `include_local_variables` (default on), `max_breadcrumbs`, `trace_propagation_targets`, `disabled_integrations`, `http_proxy` and `debug`. Unknown options are reported with a warning.
+
+Source: [github.com/errorlenshq/errorlens-python](https://github.com/errorlenshq/errorlens-python).

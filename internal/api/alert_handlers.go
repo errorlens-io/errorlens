@@ -12,9 +12,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/errorlens-io/errorlens/internal/audit"
-	"github.com/errorlens-io/errorlens/internal/db"
-	"github.com/errorlens-io/errorlens/internal/notify"
+	"github.com/errorlenshq/errorlens/internal/audit"
+	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/notify"
 )
 
 // AlertChannel is a notification destination. Secrets are never returned.

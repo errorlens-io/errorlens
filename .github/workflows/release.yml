@@ -1,7 +1,7 @@
 # Publishes the server image on every push to main (tag: edge) and on version
 # tags v* (tags: 1.2.3, 1.2, latest), for linux/amd64 and linux/arm64, to:
 #   docker.io/errorlens/errorlens        (docker pull errorlens/errorlens)
-#   ghcr.io/errorlens-io/errorlens
+#   ghcr.io/errorlenshq/errorlens
 # Docker Hub needs repository secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN
 # (a Docker Hub access token with Read & Write). Without them only GHCR is pushed.
 name: release
@@ -46,7 +46,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ghcr.io/errorlens-io/errorlens
+            ghcr.io/errorlenshq/errorlens
             name=docker.io/errorlens/errorlens,enable=${{ steps.dockerhub.outcome == 'success' }}
           tags: |
             type=edge,branch=main

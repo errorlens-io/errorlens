@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/docs/">Docs</Link>
               <Link href="/#features">Features</Link>
               <Link href="/#pricing">Pricing</Link>
-              <a href="https://github.com/errorlens-io/errorlens" rel="noopener">GitHub</a>
+              <a href="https://github.com/errorlenshq/errorlens" rel="noopener">GitHub</a>
             </nav>
             <div className="auth-links">
               <a href="/login" className="btn ghost">Sign in</a>

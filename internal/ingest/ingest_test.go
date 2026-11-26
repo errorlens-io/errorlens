@@ -17,11 +17,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/errorlens-io/errorlens/internal/db"
-	"github.com/errorlens-io/errorlens/internal/ingest"
-	"github.com/errorlens-io/errorlens/internal/process"
-	"github.com/errorlens-io/errorlens/internal/queue"
-	"github.com/errorlens-io/errorlens/internal/testutil"
+	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/ingest"
+	"github.com/errorlenshq/errorlens/internal/process"
+	"github.com/errorlenshq/errorlens/internal/queue"
+	"github.com/errorlenshq/errorlens/internal/testutil"
 )
 
 type fixture struct {

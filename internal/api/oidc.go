@@ -16,9 +16,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/oauth2"
 
-	"github.com/errorlens-io/errorlens/internal/audit"
-	"github.com/errorlens-io/errorlens/internal/auth"
-	"github.com/errorlens-io/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/audit"
+	"github.com/errorlenshq/errorlens/internal/auth"
+	"github.com/errorlenshq/errorlens/internal/db"
 )
 
 // OIDCConfig configures single sign-on with any OpenID Connect provider.

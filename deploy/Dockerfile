@@ -19,7 +19,7 @@ RUN go mod download
 COPY . .
 COPY --from=web /src/web/dist ./web/dist
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
-      -ldflags "-s -w -X github.com/errorlens-io/errorlens/internal/version.Version=${VERSION} -X github.com/errorlens-io/errorlens/internal/version.Commit=${COMMIT}" \
+      -ldflags "-s -w -X github.com/errorlenshq/errorlens/internal/version.Version=${VERSION} -X github.com/errorlenshq/errorlens/internal/version.Commit=${COMMIT}" \
       -o /out/errorlens ./cmd/errorlens
 
 # --- runtime: no shell, no package manager, non-root ---------------------------

@@ -1,6 +1,6 @@
 ---
 title: Browser JavaScript
-description: Report errors from websites and single-page apps with @errorlens/browser.
+description: Report errors from websites and single-page apps with @errorlenshq/browser.
 section: Sending data
 order: 3
 ---
@@ -8,7 +8,14 @@ order: 3
 ## Install
 
 ```bash
-npm install @errorlens/browser
+npm install @errorlenshq/browser
+```
+
+Or without a bundler, with a script tag (12 KB gzipped):
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@errorlenshq/browser@1/dist/errorlens.min.js" crossorigin="anonymous"></script>
+<script>ErrorLens.init({ dsn: "https://<key>@errorlens.io/<project-id>" });</script>
 ```
 
 ## Configure
@@ -16,7 +23,7 @@ npm install @errorlens/browser
 Initialize as early as possible in your app's entry point:
 
 ```js
-import * as ErrorLens from "@errorlens/browser";
+import * as ErrorLens from "@errorlenshq/browser";
 
 ErrorLens.init({
   dsn: "https://<key>@errorlens.io/<project-id>",
@@ -27,7 +34,9 @@ ErrorLens.init({
 
 The DSN's key can only *send* data to the project, never read it, so it is safe to include in code that runs in the browser.
 
-Uncaught errors and unhandled promise rejections are reported automatically, with the clicks, navigation and network requests that led up to them as breadcrumbs.
+Uncaught errors and unhandled promise rejections are reported automatically, with the clicks, navigation, console output and network requests that led up to them as breadcrumbs. Errors from browser extensions and other unfixable noise are dropped; use `allowUrls` to report only errors from your own scripts.
+
+Reports are sent with `keepalive`, so errors right before the user leaves the page still arrive.
 
 ## Report errors
 
@@ -49,6 +58,21 @@ ErrorLens.setUser({ id: account.id });
 
 Avoid putting names or email addresses here unless your privacy policy allows it — an opaque ID is enough to count affected users.
 
+## Performance
+
+```js
+ErrorLens.init({ dsn: "…", tracesSampleRate: 0.1 });
+```
+
+This records each page load (with network timing, resources and web vitals such as LCP and CLS), each route change in single-page apps, and the `fetch`/XHR calls made along the way. Requests to your own origin carry a `traceparent` header, so they join the same trace as your backend. To include API calls to other origins, list them in `tracePropagationTargets` (the API must allow the `traceparent` and `tracestate` headers in CORS).
+
+## Logs
+
+```js
+ErrorLens.init({ dsn: "…", enableLogs: true });
+ErrorLens.logger.warn("Cart {cartId} is slow", { cartId: 7 });
+```
+
 ## Readable stack traces
 
 Production JavaScript is minified, so stack traces point at `main.4f2a.js:1:120554`. Upload your source maps for each release and ErrorLens shows the original file, line and code instead. See [Releases and source maps](/docs/releases-source-maps/).
@@ -57,7 +81,7 @@ Use the same `release` value in `init` and in the upload command.
 
 ## React, Vue, Svelte and other frameworks
 
-`@errorlens/browser` works with any framework. For React, wrap risky parts of the tree in an error boundary and report from it:
+`@errorlenshq/browser` works with any framework. For React, wrap risky parts of the tree in an error boundary and report from it:
 
 ```jsx
 class ErrorBoundary extends React.Component {

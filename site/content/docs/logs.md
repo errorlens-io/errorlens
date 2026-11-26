@@ -11,7 +11,8 @@ The **Logs** page collects log lines from your services in one place, newest fir
 
 ## Sending logs
 
-- **Python**: pass `enable_logs=True` to `errorlens.init` and records from the standard `logging` module are sent. See [Python](/docs/python/#logs).
+- **Python**: pass `enable_logs=True` to `errorlens.init`, then use `errorlens.logger` or the standard `logging` module. See [Python](/docs/python/#logs).
+- **Node.js and browsers**: pass `enableLogs: true` to `ErrorLens.init` and use `ErrorLens.logger`. See [Node.js](/docs/javascript-node/#logs).
 - **Any language**: export logs with [OpenTelemetry](/docs/opentelemetry/) to `https://errorlens.io/v1/logs`.
 - SDKs in other languages that support structured logs over the envelope protocol work too.
 

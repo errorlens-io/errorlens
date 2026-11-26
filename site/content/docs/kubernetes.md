@@ -12,7 +12,7 @@ The repository includes a Helm chart in `deploy/helm/errorlens`. It runs databas
 You need a PostgreSQL database — a managed service or an operator such as CloudNativePG.
 
 ```bash
-git clone https://github.com/errorlens-io/errorlens.git
+git clone https://github.com/errorlenshq/errorlens.git
 helm install errorlens errorlens/deploy/helm/errorlens \
   --set publicURL=https://errors.example.com \
   --set database.url='postgres://user:pass@db:5432/errorlens?sslmode=require'

@@ -15,9 +15,9 @@ import (
 	collogs "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 
-	"github.com/errorlens-io/errorlens/internal/db"
-	"github.com/errorlens-io/errorlens/internal/queue"
-	"github.com/errorlens-io/errorlens/internal/scrub"
+	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/queue"
+	"github.com/errorlenshq/errorlens/internal/scrub"
 )
 
 // JobKind stores a batch of logs.
@@ -127,6 +127,10 @@ type sdkLog struct {
 	Attributes map[string]json.RawMessage `json:"attributes"`
 }
 
+// sdkAttrPrefix is the reserved attribute prefix of third-party envelope SDKs
+// (wire protocol identifier; never shown in the product).
+const sdkAttrPrefix = "sentry."
+
 // ParseEnvelopeItem parses a "log" envelope item: {"items": [...]}.
 func ParseEnvelopeItem(payload []byte) ([]Record, error) {
 	var wrapper struct {
@@ -153,10 +157,19 @@ func ParseEnvelopeItem(payload []byte) ([]Record, error) {
 				r.Attributes[k] = string(raw)
 			}
 		}
-		r.Release, r.Environment = r.Attributes["sentry.release"], r.Attributes["sentry.environment"]
-		for k := range r.Attributes {
-			if strings.HasPrefix(k, "sentry.") {
-				delete(r.Attributes, k)
+		// SDK-reserved attributes: "errorlens.*" from ErrorLens SDKs, and the
+		// equivalent prefix other envelope-protocol SDKs use.
+		for _, prefix := range []string{"errorlens.", sdkAttrPrefix} {
+			if v := r.Attributes[prefix+"release"]; v != "" && r.Release == "" {
+				r.Release = v
+			}
+			if v := r.Attributes[prefix+"environment"]; v != "" && r.Environment == "" {
+				r.Environment = v
+			}
+			for k := range r.Attributes {
+				if strings.HasPrefix(k, prefix) {
+					delete(r.Attributes, k)
+				}
 			}
 		}
 		out = append(out, r)

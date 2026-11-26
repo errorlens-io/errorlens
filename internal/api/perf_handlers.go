@@ -12,9 +12,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/errorlens-io/errorlens/internal/audit"
-	"github.com/errorlens-io/errorlens/internal/monitor"
-	"github.com/errorlens-io/errorlens/internal/notify"
+	"github.com/errorlenshq/errorlens/internal/audit"
+	"github.com/errorlenshq/errorlens/internal/monitor"
+	"github.com/errorlenshq/errorlens/internal/notify"
 )
 
 // longPeriod reports whether the period is long enough to read the rollups

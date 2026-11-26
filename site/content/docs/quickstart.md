@@ -46,11 +46,11 @@ errorlens.init(
 **Node.js**
 
 ```bash
-npm install @errorlens/node
+npm install @errorlenshq/node
 ```
 
 ```js
-import * as ErrorLens from "@errorlens/node";
+import * as ErrorLens from "@errorlenshq/node";
 
 ErrorLens.init({ dsn: "https://<key>@errorlens.io/<project-id>", environment: "production" });
 ```
@@ -58,11 +58,11 @@ ErrorLens.init({ dsn: "https://<key>@errorlens.io/<project-id>", environment: "p
 **Browser**
 
 ```bash
-npm install @errorlens/browser
+npm install @errorlenshq/browser
 ```
 
 ```js
-import * as ErrorLens from "@errorlens/browser";
+import * as ErrorLens from "@errorlenshq/browser";
 
 ErrorLens.init({ dsn: "https://<key>@errorlens.io/<project-id>" });
 ```

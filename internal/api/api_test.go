@@ -12,9 +12,9 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/errorlens-io/errorlens/internal/api"
-	"github.com/errorlens-io/errorlens/internal/config"
-	"github.com/errorlens-io/errorlens/internal/testutil"
+	"github.com/errorlenshq/errorlens/internal/api"
+	"github.com/errorlenshq/errorlens/internal/config"
+	"github.com/errorlenshq/errorlens/internal/testutil"
 )
 
 type client struct {

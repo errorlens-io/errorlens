@@ -15,7 +15,7 @@ ErrorLens is a single Go program with the dashboard built in, plus a PostgreSQL 
 ## Install
 
 ```bash
-git clone https://github.com/errorlens-io/errorlens.git
+git clone https://github.com/errorlenshq/errorlens.git
 cd errorlens
 cp deploy/.env.example deploy/.env
 ```

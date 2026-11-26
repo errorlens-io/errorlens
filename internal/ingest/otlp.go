@@ -15,10 +15,10 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/errorlens-io/errorlens/internal/logs"
-	"github.com/errorlens-io/errorlens/internal/monitor"
-	"github.com/errorlens-io/errorlens/internal/perf"
-	"github.com/errorlens-io/errorlens/internal/scrub"
+	"github.com/errorlenshq/errorlens/internal/logs"
+	"github.com/errorlenshq/errorlens/internal/monitor"
+	"github.com/errorlenshq/errorlens/internal/perf"
+	"github.com/errorlenshq/errorlens/internal/scrub"
 )
 
 // keyOnly authenticates OTLP requests, which carry no project id in the path.

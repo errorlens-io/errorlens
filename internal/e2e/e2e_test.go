@@ -16,15 +16,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/errorlens-io/errorlens/internal/api"
-	"github.com/errorlens-io/errorlens/internal/config"
-	"github.com/errorlens-io/errorlens/internal/crypto"
-	"github.com/errorlens-io/errorlens/internal/db"
-	"github.com/errorlens-io/errorlens/internal/logs"
-	"github.com/errorlens-io/errorlens/internal/process"
-	"github.com/errorlens-io/errorlens/internal/queue"
-	"github.com/errorlens-io/errorlens/internal/sourcemap"
-	"github.com/errorlens-io/errorlens/internal/testutil"
+	"github.com/errorlenshq/errorlens/internal/api"
+	"github.com/errorlenshq/errorlens/internal/config"
+	"github.com/errorlenshq/errorlens/internal/crypto"
+	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/logs"
+	"github.com/errorlenshq/errorlens/internal/process"
+	"github.com/errorlenshq/errorlens/internal/queue"
+	"github.com/errorlenshq/errorlens/internal/sourcemap"
+	"github.com/errorlenshq/errorlens/internal/testutil"
 )
 
 type app struct {

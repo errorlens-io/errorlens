@@ -1,14 +1,16 @@
 ---
 title: Node.js
-description: Report errors and performance data from Node.js servers with @errorlens/node.
+description: Report errors and performance data from Node.js servers with @errorlenshq/node.
 section: Sending data
 order: 2
 ---
 
 ## Install
 
+Node.js 18 or newer. The package has no dependencies besides its own core.
+
 ```bash
-npm install @errorlens/node
+npm install @errorlenshq/node
 ```
 
 ## Configure
@@ -17,7 +19,7 @@ Initialize ErrorLens **before anything else** in your app, so it can instrument 
 
 ```js
 // instrument.js
-import * as ErrorLens from "@errorlens/node";
+import * as ErrorLens from "@errorlenshq/node";
 
 ErrorLens.init({
   dsn: "https://<key>@errorlens.io/<project-id>",
@@ -40,7 +42,7 @@ Unhandled exceptions and unhandled promise rejections are reported automatically
 
 ```js
 import express from "express";
-import * as ErrorLens from "@errorlens/node";
+import * as ErrorLens from "@errorlenshq/node";
 
 const app = express();
 // ... your routes ...
@@ -48,7 +50,17 @@ ErrorLens.setupExpressErrorHandler(app);
 app.listen(3000);
 ```
 
-The equivalents for other frameworks are `setupFastifyErrorHandler(app)`, `setupKoaErrorHandler(app)` and `setupHapiErrorHandler(server)`.
+The equivalents for other frameworks are `setupFastifyErrorHandler(app)`, `setupKoaErrorHandler(app)` and `await setupHapiErrorHandler(server)`. Only server errors are reported; 4xx responses like "not found" are not.
+
+Every incoming request — in any framework, or a plain `http` server — gets its own context automatically: a user or tag set while handling one request never appears on another's errors. Unhandled errors are reported and then the process exits the way Node.js normally would.
+
+For serverless functions, wrap the handler so events are sent before the function is frozen:
+
+```js
+export const handler = ErrorLens.wrapHandler(async (event) => {
+  // ...
+});
+```
 
 ## Report errors
 
@@ -85,7 +97,33 @@ Set a sample rate to record a share of incoming requests together with their dat
 ErrorLens.init({ dsn: "…", tracesSampleRate: 0.2 });
 ```
 
-They appear on the [Performance](/docs/performance/) page. For logs from Node.js, use [OpenTelemetry](/docs/opentelemetry/).
+They appear on the [Performance](/docs/performance/) page, named after the route (`GET /orders/:id`). Outgoing `http`, `https` and `fetch` calls carry a W3C `traceparent` header, so traces continue into other services.
+
+Time your own code with `startSpan`; promises are awaited:
+
+```js
+const rows = await ErrorLens.startSpan({ name: "load orders", op: "db.query" }, () => db.orders.find());
+```
+
+## Logs
+
+```js
+ErrorLens.init({ dsn: "…", enableLogs: true });
+ErrorLens.logger.info("Order {orderId} paid", { orderId: 42, amount: 19.99 });
+```
+
+Placeholders and extra fields become searchable attributes on the [Logs](/docs/logs/) page. Add `consoleLogs: true` to also send `console.*` output.
+
+## Cron monitors
+
+```js
+await ErrorLens.withMonitor("nightly-backup", () => runBackup(), {
+  schedule: { type: "crontab", value: "0 2 * * *" },
+  maxRuntime: 30,
+});
+```
+
+See [Cron monitors](/docs/cron-monitors/).
 
 ## Before exit
 
@@ -107,4 +145,6 @@ ErrorLens.init({
 });
 ```
 
-The ErrorLens server also [removes secrets](/docs/data-scrubbing/) from every event before storage, whatever the SDK sends.
+Passwords, tokens and API keys are removed in your app before anything is sent (add names with `scrubFields`), and the ErrorLens server [removes secrets again](/docs/data-scrubbing/) before storage. IP addresses, cookies and request bodies are only sent with `sendDefaultPii: true`.
+
+Source: [github.com/errorlenshq/errorlens-javascript](https://github.com/errorlenshq/errorlens-javascript).

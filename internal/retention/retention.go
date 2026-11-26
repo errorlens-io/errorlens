@@ -11,7 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/errorlens-io/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/db"
 )
 
 const (

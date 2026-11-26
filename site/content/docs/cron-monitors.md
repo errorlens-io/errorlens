@@ -23,6 +23,21 @@ Scheduled jobs fail quietly: a backup that stopped running last month looks exac
 
 **From your SDK**: send a check-in with a monitor configuration and ErrorLens creates the monitor the first time it sees it, and keeps the schedule up to date afterwards.
 
+```python
+@errorlens.monitor("nightly-backup", schedule="0 2 * * *", max_runtime=30)
+def backup():
+    ...
+```
+
+```js
+await ErrorLens.withMonitor("nightly-backup", () => runBackup(), {
+  schedule: { type: "crontab", value: "0 2 * * *" },
+  maxRuntime: 30,
+});
+```
+
+Both report *in progress* when the job starts, then *ok* or *error* with its duration.
+
 ## Check in
 
 The simplest check-in is one HTTP call at the end of the job. The monitor page shows the exact command, with your project ID and key filled in:

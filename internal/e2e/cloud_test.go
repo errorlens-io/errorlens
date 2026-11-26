@@ -19,15 +19,15 @@ import (
 	"github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
 
-	"github.com/errorlens-io/errorlens/internal/api"
-	"github.com/errorlens-io/errorlens/internal/auth"
-	"github.com/errorlens-io/errorlens/internal/billing"
-	"github.com/errorlens-io/errorlens/internal/config"
-	"github.com/errorlens-io/errorlens/internal/logs"
-	"github.com/errorlens-io/errorlens/internal/process"
-	"github.com/errorlens-io/errorlens/internal/queue"
-	"github.com/errorlens-io/errorlens/internal/testutil"
-	"github.com/errorlens-io/errorlens/internal/usage"
+	"github.com/errorlenshq/errorlens/internal/api"
+	"github.com/errorlenshq/errorlens/internal/auth"
+	"github.com/errorlenshq/errorlens/internal/billing"
+	"github.com/errorlenshq/errorlens/internal/config"
+	"github.com/errorlenshq/errorlens/internal/logs"
+	"github.com/errorlenshq/errorlens/internal/process"
+	"github.com/errorlenshq/errorlens/internal/queue"
+	"github.com/errorlenshq/errorlens/internal/testutil"
+	"github.com/errorlenshq/errorlens/internal/usage"
 )
 
 // newCloudApp builds the server in hosted mode with optional extras.

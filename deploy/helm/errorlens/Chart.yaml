@@ -5,4 +5,4 @@ type: application
 version: 0.1.0
 appVersion: "0.1.0"
 home: https://errorlens.io
-sources: ["https://github.com/errorlens-io/errorlens"]
+sources: ["https://github.com/errorlenshq/errorlens"]

@@ -18,14 +18,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/errorlens-io/errorlens/internal/auth"
-	"github.com/errorlens-io/errorlens/internal/billing"
-	"github.com/errorlens-io/errorlens/internal/config"
-	"github.com/errorlens-io/errorlens/internal/crypto"
-	"github.com/errorlens-io/errorlens/internal/db"
-	"github.com/errorlens-io/errorlens/internal/ingest"
-	"github.com/errorlens-io/errorlens/internal/notify"
-	"github.com/errorlens-io/errorlens/internal/version"
+	"github.com/errorlenshq/errorlens/internal/auth"
+	"github.com/errorlenshq/errorlens/internal/billing"
+	"github.com/errorlenshq/errorlens/internal/config"
+	"github.com/errorlenshq/errorlens/internal/crypto"
+	"github.com/errorlenshq/errorlens/internal/db"
+	"github.com/errorlenshq/errorlens/internal/ingest"
+	"github.com/errorlenshq/errorlens/internal/notify"
+	"github.com/errorlenshq/errorlens/internal/version"
 )
 
 const sessionCookie = "errorlens_session"

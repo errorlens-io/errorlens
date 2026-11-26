@@ -326,13 +326,13 @@ errorlens/
 | Phase | Status | Notes |
 |---|---|---|
 | 0 — Foundation | ✅ Done | Go + Postgres, migrations, RLS, job queue, auth, UI shell, Docker, CI |
-| 1 — Errors MVP | ✅ Done | Ingest (envelope/store), scrubbing, grouping, regressions, issues UI, alerts (email/Slack/Discord/webhook), members & invitations, privacy settings, audit log, own SDKs (`errorlens`, `@errorlens/node`, `@errorlens/browser`) |
+| 1 — Errors MVP | ✅ Done | Ingest (envelope/store), scrubbing, grouping, regressions, issues UI, alerts (email/Slack/Discord/webhook), members & invitations, privacy settings, audit log, own SDKs (`errorlens`, `@errorlenshq/node`, `@errorlenshq/browser`) |
 | 2 — Logs & workflow | ✅ Done | SDK + OTLP logs, releases, JS source maps + upload CLI, API tokens, payload encryption at rest |
 | 3 — Hosted | ✅ Done (code) | Sign-up, email verification, password reset, quotas & usage, Stripe hooks, admin console, TOTP 2FA, OIDC SSO, web/worker roles, Helm chart |
 | 4 — Beyond | ✅ Partly | Transactions/spans (SDK + OTLP), performance page, trace view, cron + uptime monitors. Not done: ClickHouse adapter, ProGuard/dSYM symbolication, session replay, profiling |
 
 ### Not done / needs the owner
-- Buy **errorlens.io**; create GitHub org `errorlens-io` (`errorlens` is taken), Docker Hub `errorlens`, npm scope `@errorlens`, PyPI `errorlens`; then publish the SDKs and image.
+- Buy **errorlens.io**; create GitHub org `errorlenshq` (`errorlens` is taken), Docker Hub `errorlens`, npm scope `@errorlens`, PyPI `errorlens`; then publish the SDKs and image.
 - Stripe account, price IDs and webhook secret for the hosted tier (code is ready, untested against live Stripe).
 - External security review before offering the hosted service.
 - Load testing against the performance targets in §10.
