@@ -1,20 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
-import { AdminOrg, api } from "../api";
+import { AdminOrg, AdminPlan, api } from "../api";
 import { goToOrg } from "../router";
 import { formatCount, timeAgo } from "../ui";
 
-/** Plans an organization can be on. Paid plans come from billing; any other name can still be typed. */
-const PLAN_LABEL: Record<string, string> = { "self-hosted": "Self-hosted", free: "Free" };
-const planLabel = (plan: string) => PLAN_LABEL[plan] ?? plan.charAt(0).toUpperCase() + plan.slice(1);
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, " ");
 const fullDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 
 export function AdminPage() {
   const [orgs, setOrgs] = useState<AdminOrg[] | null>(null);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<AdminOrg | null>(null);
+  const [catalog, setCatalog] = useState<{ hosted: boolean; plans: AdminPlan[] } | null>(null);
   const load = useCallback(() => {
     api.adminOrgs().then(setOrgs).catch((e) => setError(e.message));
   }, []);
+  useEffect(() => { api.adminPlans().then(setCatalog).catch((e) => setError(e.message)); }, []);
+  const planLabel = (id: string) => catalog?.plans.find((p) => p.id === id)?.label ?? capitalize(id);
+  // On a self-hosted server there is one plan (no limit): nothing to change unless an org is on something else.
+  const canChange = (o: AdminOrg) => !!catalog && (catalog.hosted || o.plan !== "self-hosted" || o.quota !== null);
   useEffect(load, [load]);
 
   const totals = (orgs ?? []).reduce(
@@ -26,8 +29,11 @@ export function AdminPage() {
     <>
       <div className="page-head"><h1>Instance admin</h1></div>
       <p className="muted admin-intro">
-        Every organization on this server, with its plan and how many error events it sent this month. Only instance
-        administrators can see this page.
+        Every organization on this server, with its plan and how many error events it sent this month.{" "}
+        {catalog && (catalog.hosted
+          ? "Each plan comes with its own monthly limit."
+          : "This is a self-hosted server: organizations have no limit.")}{" "}
+        Only instance administrators can see this page.
       </p>
       {error && <p className="error">{error}</p>}
 
@@ -82,7 +88,7 @@ export function AdminPage() {
                   <td className="num" data-label="Members">{o.members}</td>
                   <td className="num" data-label="Projects">{o.projects}</td>
                   <td data-label="Created"><span title={new Date(o.createdAt).toLocaleString()}>{fullDate(o.createdAt)}</span><div className="muted small">{timeAgo(o.createdAt)}</div></td>
-                  <td className="row-actions"><button className="ghost small" onClick={() => setEditing(o)}>Change plan</button></td>
+                  <td className="row-actions">{canChange(o) && <button className="ghost small" onClick={() => setEditing(o)}>Change plan</button>}</td>
                 </tr>
               );
             })}
@@ -90,9 +96,10 @@ export function AdminPage() {
         </table>
       </div>
 
-      {editing && (
+      {editing && catalog && (
         <PlanDialog
           org={editing}
+          plans={catalog.plans}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); load(); }}
         />
@@ -101,12 +108,11 @@ export function AdminPage() {
   );
 }
 
-function PlanDialog({ org, onClose, onSaved }: { org: AdminOrg; onClose: () => void; onSaved: () => void }) {
-  const known = Object.keys(PLAN_LABEL);
-  const [plan, setPlan] = useState(org.plan);
-  const [custom, setCustom] = useState(known.includes(org.plan) ? "" : org.plan);
-  const [limited, setLimited] = useState(org.quota !== null);
-  const [quota, setQuota] = useState(org.quota === null ? "5000" : String(org.quota));
+function PlanDialog({ org, plans, onClose, onSaved }: { org: AdminOrg; plans: AdminPlan[]; onClose: () => void; onSaved: () => void }) {
+  const current = plans.find((p) => p.id === org.plan);
+  // an org on a plan this server no longer offers starts on the closest one: no limit stays no limit
+  const closest = plans.find((p) => (p.quota === null) === (org.quota === null)) ?? plans[0];
+  const [plan, setPlan] = useState(current?.id ?? closest?.id ?? "");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -118,13 +124,9 @@ function PlanDialog({ org, onClose, onSaved }: { org: AdminOrg; onClose: () => v
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    const name = (known.includes(plan) ? plan : custom).trim();
-    const q = limited ? Number(quota) : null;
-    if (!name) return setError("Choose a plan.");
-    if (q !== null && (!Number.isInteger(q) || q < 0)) return setError("The quota must be a whole number of events.");
     setSaving(true);
     try {
-      await api.adminUpdateOrg(org.id, name, q);
+      await api.adminUpdateOrg(org.id, plan);
       onSaved();
     } catch (err) {
       setError((err as Error).message);
@@ -136,33 +138,29 @@ function PlanDialog({ org, onClose, onSaved }: { org: AdminOrg; onClose: () => v
     <div className="dialog-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <form className="dialog card" role="dialog" aria-modal="true" aria-labelledby="plan-title" onSubmit={save}>
         <h2 id="plan-title">Change plan for {org.name}</h2>
-        <label>
-          Plan
-          <select value={known.includes(plan) ? plan : "other"} onChange={(e) => setPlan(e.target.value)}>
-            {known.map((p) => <option key={p} value={p}>{PLAN_LABEL[p]}</option>)}
-            <option value="other">Other (paid plan name)…</option>
-          </select>
-        </label>
-        {!known.includes(plan) && (
-          <label>
-            Plan name
-            <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="e.g. team" autoFocus />
-          </label>
-        )}
-        <fieldset className="quota-choice">
-          <legend>Monthly error events</legend>
-          <label className="inline"><input type="radio" checked={!limited} onChange={() => setLimited(false)} /> No limit</label>
-          <label className="inline"><input type="radio" checked={limited} onChange={() => setLimited(true)} /> Limit to</label>
-          {limited && <input type="number" min={0} step={1} value={quota} onChange={(e) => setQuota(e.target.value)} aria-label="Monthly error event quota" />}
+        {!current && <p className="muted small">Currently on “{org.plan}”, which this server doesn't offer any more.</p>}
+        <div className="plan-options" role="radiogroup" aria-label="Plan">
+          {plans.map((p) => (
+            <label key={p.id} className={`plan-option${plan === p.id ? " selected" : ""}`}>
+              <input type="radio" name="plan" value={p.id} checked={plan === p.id} onChange={() => setPlan(p.id)} />
+              <span>
+                <strong>{p.label}</strong>
+                <span className="plan-limit">{p.quota === null ? "No limit" : `${p.quota.toLocaleString()} error events a month`}</span>
+                <span className="muted small">{p.note}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {plans.some((p) => p.quota !== null) && (
           <p className="muted small">
-            Only error events count. When an organization reaches its limit, new errors are paused until the 1st of next
-            month; performance data and logs keep arriving.
+            Only error events count. At the limit, new errors pause until the 1st of next month; performance data and
+            logs keep arriving.
           </p>
-        </fieldset>
+        )}
         {error && <p className="error">{error}</p>}
         <div className="dialog-actions">
           <button type="button" className="ghost" onClick={onClose}>Cancel</button>
-          <button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</button>
+          <button type="submit" disabled={saving || plan === org.plan}>{saving ? "Saving…" : "Save"}</button>
         </div>
       </form>
     </div>

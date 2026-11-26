@@ -74,6 +74,7 @@ export type BillingInfo = {
   billingEnabled: boolean; plans?: { id: string; label: string; quota: number }[];
   days: { day: string; accepted: number; dropped: number; logs: number }[];
 };
+export type AdminPlan = { id: string; label: string; quota: number | null; note: string };
 export type AdminOrg = { id: string; name: string; slug: string; plan: string; quota: number | null; billingStatus: string; members: number; projects: number; usedThisMonth: number; createdAt: string };
 
 export type TxSummary = { name: string; project: string; op: string; count: number; p50: number; p95: number; avg: number; failureRate: number; perMinute: number };
@@ -180,7 +181,8 @@ export const api = {
     request<{ id: string }>(id ? "PUT" : "POST", `/organizations/${org}/monitors${id ? `/${id}` : ""}`, b),
   deleteMonitor: (org: string, id: string) => request<void>("DELETE", `/organizations/${org}/monitors/${id}`),
   adminOrgs: () => request<AdminOrg[]>("GET", "/admin/organizations"),
-  adminUpdateOrg: (id: string, plan: string, quota: number | null) => request<{ ok: boolean }>("PUT", `/admin/organizations/${id}`, { plan, quota }),
+  adminUpdateOrg: (id: string, plan: string) => request<{ ok: boolean }>("PUT", `/admin/organizations/${id}`, { plan }),
+  adminPlans: () => request<{ hosted: boolean; plans: AdminPlan[] }>("GET", "/admin/plans"),
   logout: () => request<void>("POST", "/auth/logout", {}),
   me: () => request<{ user: User; organizations: Organization[] }>("GET", "/auth/me"),
   projects: (org: string) => cachedProjects(org),

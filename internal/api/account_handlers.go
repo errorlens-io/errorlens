@@ -142,7 +142,7 @@ func (s *Server) createOrganization(ctx context.Context, userID uuid.UUID, name,
 			slug = base + "-" + itoa(i)
 		}
 		plan, quota := "self-hosted", (*int64)(nil)
-		if s.cfg.SignupEnabled {
+		if s.hosted() {
 			plan, quota = "free", &s.cfg.FreeEventQuota
 		}
 		if err := db.ApplyScope(ctx, tx, db.Scope{OrgID: orgID, UserID: userID}); err != nil {

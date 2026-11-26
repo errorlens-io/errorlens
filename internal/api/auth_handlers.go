@@ -168,8 +168,13 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		if err := db.ApplyScope(ctx, tx, db.Scope{OrgID: orgID, UserID: userID}); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3)`,
-			orgID, req.OrganizationName, slug); err != nil {
+		// the first organization belongs to whoever runs the server: no limit on either kind of server
+		firstPlan := "self-hosted"
+		if s.hosted() {
+			firstPlan = "unlimited"
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO organizations (id, name, slug, plan) VALUES ($1, $2, $3, $4)`,
+			orgID, req.OrganizationName, slug, firstPlan); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')`,

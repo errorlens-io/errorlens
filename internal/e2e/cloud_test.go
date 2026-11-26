@@ -112,8 +112,31 @@ func TestSignupQuotaAndAdmin(t *testing.T) {
 	if len(orgs) != 1 || orgs[0].Plan != "free" {
 		t.Fatalf("admin orgs = %s", body)
 	}
-	if code, _ := a.req("PUT", "/api/0/admin/organizations/"+orgs[0].ID, map[string]any{"plan": "team", "quota": nil}, nil); code != 200 {
+	// Hosted mode: plans come from a catalog and set their own quota.
+	_, body = a.req("GET", "/api/0/admin/plans", nil, nil)
+	if !strings.Contains(string(body), `"hosted":true`) || !strings.Contains(string(body), `"id":"free","label":"Free","quota":3`) ||
+		!strings.Contains(string(body), `"id":"unlimited"`) || strings.Contains(string(body), `"self-hosted"`) {
+		t.Fatalf("hosted plans = %s", body)
+	}
+	if code, _ := a.req("PUT", "/api/0/admin/organizations/"+orgs[0].ID, map[string]any{"plan": "team"}, nil); code != 400 {
+		t.Fatalf("unknown plan = %d", code)
+	}
+	if code, _ := a.req("PUT", "/api/0/admin/organizations/"+orgs[0].ID, map[string]any{"plan": "self-hosted"}, nil); code != 400 {
+		t.Fatalf("self-hosted plan on the hosted service = %d", code)
+	}
+	// a quota sent along is ignored: the plan decides
+	if code, _ := a.req("PUT", "/api/0/admin/organizations/"+orgs[0].ID, map[string]any{"plan": "unlimited", "quota": 5}, nil); code != 200 {
 		t.Fatalf("admin update = %d", code)
+	}
+	var quota *int64
+	a.db.Pool.QueryRow(context.Background(), `SELECT monthly_event_quota FROM organizations WHERE id = $1`, orgs[0].ID).Scan(&quota)
+	if quota != nil {
+		t.Fatalf("unlimited plan kept quota %d", *quota)
+	}
+	a.req("PUT", "/api/0/admin/organizations/"+orgs[0].ID, map[string]any{"plan": "free"}, nil)
+	a.db.Pool.QueryRow(context.Background(), `SELECT monthly_event_quota FROM organizations WHERE id = $1`, orgs[0].ID).Scan(&quota)
+	if quota == nil || *quota != 3 {
+		t.Fatalf("free plan quota = %v", quota)
 	}
 	// Second org for the same user gets a unique slug.
 	code, body = a.req("POST", "/api/0/organizations", map[string]string{"name": "Ana Co"}, nil)
@@ -126,6 +149,28 @@ func TestSignupDisabledBySelfHostedDefault(t *testing.T) {
 	a := newCloudApp(t, map[string]string{}, nil)
 	if code, _ := a.req("POST", "/api/0/auth/signup", map[string]string{"email": "x@example.com", "password": "a long password!", "organizationName": "X"}, nil); code != 403 {
 		t.Fatalf("signup on self-hosted = %d", code)
+	}
+}
+
+func TestSelfHostedPlanHasNoLimit(t *testing.T) {
+	a := newCloudApp(t, map[string]string{}, nil)
+	a.req("POST", "/api/0/setup", map[string]string{"email": "o@example.com", "password": "a long password!", "organizationName": "Acme"}, nil)
+	_, body := a.req("GET", "/api/0/admin/plans", nil, nil)
+	if !strings.Contains(string(body), `"hosted":false`) || !strings.Contains(string(body), `"plans":[{"id":"self-hosted","label":"Self-hosted","quota":null`) {
+		t.Fatalf("self-hosted plans = %s", body)
+	}
+	var orgID string
+	a.db.Pool.QueryRow(context.Background(), `SELECT id::text FROM organizations`).Scan(&orgID)
+	if code, _ := a.req("PUT", "/api/0/admin/organizations/"+orgID, map[string]any{"plan": "free"}, nil); code != 400 {
+		t.Fatalf("free plan on a self-hosted server = %d", code)
+	}
+	if code, _ := a.req("PUT", "/api/0/admin/organizations/"+orgID, map[string]any{"plan": "self-hosted", "quota": 10}, nil); code != 200 {
+		t.Fatalf("self-hosted plan = %d", code)
+	}
+	var quota *int64
+	a.db.Pool.QueryRow(context.Background(), `SELECT monthly_event_quota FROM organizations WHERE id = $1`, orgID).Scan(&quota)
+	if quota != nil {
+		t.Fatalf("self-hosted org got quota %d", *quota)
 	}
 }
 
@@ -297,5 +342,16 @@ func TestOIDCLoginProvisionsIntoOrg(t *testing.T) {
 	resp.Body.Close()
 	if !strings.Contains(resp.Request.URL.Query().Get("sso_error"), "No ErrorLens account") {
 		t.Fatalf("evil domain not refused: %s", resp.Request.URL)
+	}
+}
+
+func TestHostedFirstOrganizationIsUnlimited(t *testing.T) {
+	a := newCloudApp(t, map[string]string{"ERRORLENS_SIGNUP_ENABLED": "true"}, nil)
+	a.req("POST", "/api/0/setup", map[string]string{"email": "o@example.com", "password": "a long password!", "organizationName": "Acme"}, nil)
+	var plan string
+	var quota *int64
+	a.db.Pool.QueryRow(context.Background(), `SELECT plan, monthly_event_quota FROM organizations`).Scan(&plan, &quota)
+	if plan != "unlimited" || quota != nil {
+		t.Fatalf("first hosted organization = %s %v", plan, quota)
 	}
 }

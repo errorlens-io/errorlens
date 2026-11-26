@@ -72,7 +72,8 @@ func (s *Server) billingCheckout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Plan string `json:"plan"`
+		Plan  string `json:"plan"`
+		Quota *int64 `json:"quota"` // accepted from older dashboards and ignored: the plan sets the quota
 	}
 	if !decodeJSON(w, r, &req) {
 		return
@@ -246,29 +247,71 @@ func (s *Server) adminUpdateOrg(w http.ResponseWriter, r *http.Request) {
 	}
 	var req struct {
 		Plan  string `json:"plan"`
-		Quota *int64 `json:"quota"` // null = unlimited
+		Quota *int64 `json:"quota"` // accepted from older dashboards and ignored: the plan sets the quota
 	}
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	if req.Plan == "" || len(req.Plan) > 50 || (req.Quota != nil && *req.Quota < 0) {
-		writeError(w, http.StatusBadRequest, "plan is required and quota must be ≥ 0 or null")
+	// The plan decides the quota: no hand-typed limits, so a plan and its limit can't disagree.
+	var plan *adminPlan
+	for _, p := range s.planCatalog() {
+		if p.ID == req.Plan {
+			plan = &p
+			break
+		}
+	}
+	if plan == nil {
+		writeError(w, http.StatusBadRequest, "unknown plan")
 		return
 	}
 	ctx := r.Context()
 	err = s.db.System(ctx, func(tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, `UPDATE organizations SET plan = $2, monthly_event_quota = $3 WHERE id = $1`, id, req.Plan, req.Quota)
+		tag, err := tx.Exec(ctx, `UPDATE organizations SET plan = $2, monthly_event_quota = $3 WHERE id = $1`, id, plan.ID, plan.Quota)
 		if err != nil {
 			return err
 		}
 		if tag.RowsAffected() == 0 {
 			return pgx.ErrNoRows
 		}
-		return audit.Record(ctx, tx, audit.Entry{OrgID: id, ActorID: userFrom(ctx).ID, Action: "admin.plan_change", Target: req.Plan, IP: clientIP(r)})
+		return audit.Record(ctx, tx, audit.Entry{OrgID: id, ActorID: userFrom(ctx).ID, Action: "admin.plan_change", Target: plan.ID, IP: clientIP(r)})
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "organization not found")
 		return
 	}
 	s.finish(w, r, err, map[string]bool{"ok": true})
+}
+
+// adminPlan is a plan an instance administrator can put an organization on.
+type adminPlan struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+	Quota *int64 `json:"quota"` // monthly error events; null = no limit
+	Note  string `json:"note"`
+}
+
+// hosted reports whether this server runs the multi-tenant service (public sign-up or organization subdomains).
+func (s *Server) hosted() bool {
+	return s.cfg.SignupEnabled || s.cfg.TenantDomain != ""
+}
+
+// planCatalog lists the plans for this server. Self-hosted servers have one plan with no limit; the hosted
+// service has Free (the sign-up quota), the paid plans from billing, and Unlimited for internal organizations.
+func (s *Server) planCatalog() []adminPlan {
+	if !s.hosted() {
+		return []adminPlan{{ID: "self-hosted", Label: "Self-hosted", Note: "Your own server: no limit."}}
+	}
+	free := s.cfg.FreeEventQuota
+	plans := []adminPlan{{ID: "free", Label: "Free", Quota: &free, Note: "What new sign-ups get."}}
+	if s.billing != nil {
+		for _, p := range s.billing.Plans {
+			q := p.Quota
+			plans = append(plans, adminPlan{ID: p.ID, Label: p.Label, Quota: &q, Note: "Paid plan, billed through Stripe."})
+		}
+	}
+	return append(plans, adminPlan{ID: "unlimited", Label: "Unlimited", Note: "For your own and partner organizations; not sold."})
+}
+
+func (s *Server) adminPlans(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"hosted": s.hosted(), "plans": s.planCatalog()})
 }

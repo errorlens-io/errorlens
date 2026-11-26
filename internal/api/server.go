@@ -126,6 +126,7 @@ func (s *Server) Handler() http.Handler {
 				r.Use(requireSuperuser)
 				r.Get("/organizations", s.adminListOrgs)
 				r.Put("/organizations/{orgID}", s.adminUpdateOrg)
+				r.Get("/plans", s.adminPlans)
 			})
 			r.Route("/organizations/{org}", func(r chi.Router) {
 				r.Use(s.loadOrg)
