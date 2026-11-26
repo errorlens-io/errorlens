@@ -395,7 +395,7 @@ export const LANDINGS: Landing[] = [
       },
       {
         h2: "Reliable delivery",
-        body: ["Reports are sent with <code>fetch</code> keepalive and flushed when the tab is hidden, so an error right before the user navigates away still arrives. Requests are CORS “simple” requests: no preflight round trip."],
+        body: ["Reports are sent with <code>fetch</code> keepalive and flushed when the tab is hidden, so an error right before the user navigates away still arrives. Requests are CORS “simple” requests: no preflight round trip.", "On flaky mobile networks a report that can't be sent is retried, then kept in the browser and sent again when the connection is back or on the next page load — so errors from users with bad connections aren't lost."],
       },
     ],
     faq: [
@@ -456,7 +456,7 @@ export const LANDINGS: Landing[] = [
       {
         h2: "Server: instrumentation.ts",
         body: ["Initialize the Node.js SDK in Next.js's instrumentation hook, and report request errors from <code>onRequestError</code>:"],
-        code: [{ lang: "bash", code: "npm install @errorlenshq/node @errorlenshq/browser" }, { label: "instrumentation.ts", lang: "ts", code: `export async function register() {\n  if (process.env.NEXT_RUNTIME === "nodejs") {\n    const ErrorLens = await import("@errorlenshq/node");\n    ErrorLens.init({ dsn: process.env.ERRORLENS_DSN, tracesSampleRate: 0.2 });\n  }\n}\n\nexport async function onRequestError(error: unknown) {\n  if (process.env.NEXT_RUNTIME === "nodejs") {\n    const ErrorLens = await import("@errorlenshq/node");\n    ErrorLens.captureException(error);\n  }\n}` }],
+        code: [{ lang: "bash", code: "npm install @errorlenshq/node @errorlenshq/browser" }, { label: "instrumentation.ts", lang: "ts", code: `export async function register() {\n  if (process.env.NEXT_RUNTIME === "nodejs") {\n    const ErrorLens = await import("@errorlenshq/node");\n    ErrorLens.init({\n      dsn: process.env.ERRORLENS_DSN,\n      tracesSampleRate: 0.2,\n      // Next.js caches server fetches by their headers: don't add trace headers to them\n      tracePropagationTargets: [],\n    });\n  }\n}\n\nexport async function onRequestError(error: unknown) {\n  if (process.env.NEXT_RUNTIME === "nodejs") {\n    const ErrorLens = await import("@errorlenshq/node");\n    ErrorLens.captureException(error);\n  }\n}` }],
       },
       {
         h2: "Browser: instrumentation-client.ts",
@@ -470,6 +470,7 @@ export const LANDINGS: Landing[] = [
           "Page loads and client-side navigations as transactions, with web vitals",
           "Same-origin API calls carry <code>traceparent</code>, so a slow page links to the slow server request",
         ],
+        body: ["Dynamic pages are traced by their path. To group them by route instead — one row for <code>/articles/[slug]</code> rather than one per article — rename transactions in <code>beforeSendTransaction</code>, for example <code>event.transaction = event.transaction.replace(/^(GET \\/articles)\\/[^/]+$/, \"$1/[slug]\")</code>."],
       },
     ],
     faq: [
@@ -494,8 +495,8 @@ export const LANDINGS: Landing[] = [
     sections: [
       {
         h2: "Running in five minutes",
-        code: [{ lang: "bash", code: `git clone https://github.com/errorlenshq/errorlens.git && cd errorlens\ncp deploy/.env.example deploy/.env      # set a strong POSTGRES_PASSWORD\ndocker compose -f deploy/docker-compose.yml up -d --build\n# open http://localhost:8080 and create the first account` }],
-        body: ['Kubernetes? A Helm chart is included — see <a href="/docs/kubernetes/">Kubernetes</a>. Full guide: <a href="/docs/self-hosting/">self-hosting</a>.'],
+        code: [{ lang: "bash", code: `git clone https://github.com/errorlenshq/errorlens.git && cd errorlens\ncp deploy/.env.example deploy/.env      # set a strong POSTGRES_PASSWORD\ndocker compose -f deploy/docker-compose.yml up -d\n# open http://localhost:8080 and create the first account` }, { label: "Or just the container (with your own Postgres)", lang: "bash", code: `docker run -d -p 8080:8080 \\\n  -e ERRORLENS_DATABASE_URL="postgres://user:pass@db:5432/errorlens?sslmode=disable" \\\n  errorlens/errorlens` }],
+        body: ['The image <a href="https://hub.docker.com/r/errorlens/errorlens">errorlens/errorlens</a> is about 40 MB, runs on x86-64 and ARM, has no shell and runs as a non-root user. Kubernetes? A Helm chart is included — see <a href="/docs/kubernetes/">Kubernetes</a>. Full guide: <a href="/docs/self-hosting/">self-hosting</a>.'],
       },
       {
         h2: "Why it's easy to operate",

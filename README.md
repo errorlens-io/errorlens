@@ -26,8 +26,10 @@ ErrorLens runs entirely on your infrastructure. It works with the error-reportin
 git clone https://github.com/errorlenshq/errorlens.git
 cd errorlens
 cp deploy/.env.example deploy/.env    # set a strong POSTGRES_PASSWORD
-docker compose -f deploy/docker-compose.yml up -d --build
+docker compose -f deploy/docker-compose.yml up -d
 ```
+
+This runs the published image [`errorlens/errorlens`](https://hub.docker.com/r/errorlens/errorlens) (x86-64 and ARM). Add `--build` to build from your checkout instead.
 
 Open <http://localhost:8080>, create the first admin account, then create a project to get its DSN.
 To see ErrorLens with data right away:

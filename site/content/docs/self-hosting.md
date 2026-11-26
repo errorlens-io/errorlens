@@ -34,7 +34,26 @@ Start it:
 docker compose -f deploy/docker-compose.yml up -d
 ```
 
+This pulls the published image [`errorlens/errorlens`](https://hub.docker.com/r/errorlens/errorlens) from Docker Hub (also at `ghcr.io/errorlenshq/errorlens`), built for both x86-64 and ARM servers. To pin a version instead of `latest`, add it to `deploy/.env`:
+
+```bash
+ERRORLENS_VERSION=1.0.0
+```
+
 ErrorLens creates its database tables on first start, then listens on port 8080. Open the address in a browser: the first visit shows a one-time form to create the **first admin account** and organization. Do this straight away — until it is done, anyone who can reach the server could claim it.
+
+### Without Compose
+
+The image runs anywhere Docker does. With an existing Postgres:
+
+```bash
+docker run -d --name errorlens -p 8080:8080 \
+  -e ERRORLENS_DATABASE_URL="postgres://errorlens:<password>@<db-host>:5432/errorlens?sslmode=disable" \
+  -e ERRORLENS_PUBLIC_URL="https://errors.example.com" \
+  errorlens/errorlens:1.0.0
+```
+
+The image is about 40 MB: no shell, no package manager, and it runs as a non-root user. Its built-in health check (`errorlens healthcheck`) shows in `docker ps` as *healthy* once the server answers.
 
 ## HTTPS
 
@@ -75,9 +94,11 @@ ERRORLENS_SMTP_FROM=ErrorLens <alerts@example.com>
 ## Updating
 
 ```bash
-git pull
-docker compose -f deploy/docker-compose.yml up -d --build
+docker compose -f deploy/docker-compose.yml pull
+docker compose -f deploy/docker-compose.yml up -d
 ```
+
+If you pinned `ERRORLENS_VERSION`, change it first. To run your own build from the repository instead, use `git pull` and `up -d --build`.
 
 Database migrations run automatically when the new version starts. Back up the database before upgrading across major versions.
 
@@ -101,7 +122,7 @@ errorlens serve --role=worker   # processing, alerts, monitors, retention
 errorlens serve --role=all      # both (the default)
 ```
 
-Run several web replicas behind a load balancer and one or more workers; they coordinate through Postgres. Events, transactions and logs are stored in daily partitions, so deleting old data is cheap. For Kubernetes, see [Kubernetes](/docs/kubernetes/).
+Run several web replicas behind a load balancer and one or more workers; they coordinate through Postgres. Workers serve no HTTP, so turn off the image's health check for them (`healthcheck: { disable: true }` in Compose, or `--no-healthcheck` with `docker run`). Events, transactions and logs are stored in daily partitions, so deleting old data is cheap. For Kubernetes, see [Kubernetes](/docs/kubernetes/).
 
 ## Telemetry
 

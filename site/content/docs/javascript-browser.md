@@ -37,7 +37,15 @@ The DSN's key can only *send* data to the project, never read it, so it is safe 
 
 Uncaught errors and unhandled promise rejections are reported automatically, with the clicks, navigation, console output and network requests that led up to them as breadcrumbs. Errors from browser extensions and other unfixable noise are dropped; use `allowUrls` to report only errors from your own scripts.
 
-Reports are sent with `keepalive`, so errors right before the user leaves the page still arrive.
+## Reliable delivery
+
+Reports are sent with `keepalive`, so errors right before the user leaves the page still arrive. On flaky networks — a dropped mobile connection, being briefly offline — a report that can't be sent is retried once, then kept in `localStorage` (at most 30 reports, for up to 24 hours) and sent again 30 seconds later, when the browser comes back online, or on the next page load. Answers from the server, such as a rate limit, are never retried.
+
+To keep nothing in the browser, turn it off:
+
+```js
+ErrorLens.init({ dsn: "…", offlineQueue: false });
+```
 
 ## Report errors
 

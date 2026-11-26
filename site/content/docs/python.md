@@ -55,6 +55,8 @@ except PaymentError:
     errorlens.capture_exception()
 ```
 
+Each exception is reported once, even when a framework, `logger.exception()` and your own code all see it.
+
 To report something that isn't an exception:
 
 ```python
