@@ -4,6 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description: "What the ErrorLens hosted service collects, why, who processes it, how long it is kept, and your rights.",
+  alternates: { canonical: "/privacy/" },
 };
 
 const UPDATED = "26 November 2026";

@@ -1,13 +1,14 @@
 ---
 title: Logs
-description: Search, filter and live-tail structured logs, linked to the traces and errors they belong to.
+description: Send structured logs to ErrorLens from SDKs or OpenTelemetry, search them by text and attribute, tail them live and jump from any line to its trace.
 section: Features
 order: 4
+seo_title: Logs: Search, Live Tail and Traces
 ---
 
 The **Logs** page collects log lines from your services in one place, newest first. Logs that belong to a traced request link to that trace, so you can jump from a suspicious line to the request, its spans and its errors.
 
-![The logs page](/screenshots/logs.png "Log lines with time, severity, project and message; a trace link appears on lines that belong to a trace")
+![The logs page](/screenshots/logs.webp "Log lines with time, severity, project and message; a trace link appears on lines that belong to a trace")
 
 ## Sending logs
 

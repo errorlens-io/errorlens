@@ -1,15 +1,16 @@
 ---
 title: Quick start
-description: Create an account, make a project and see your first error in about five minutes.
+description: Set up ErrorLens in five minutes: create a project, install the Python, Node.js or browser SDK, send a test error and get alerted when something breaks.
 section: Getting started
 order: 2
+seo_title: Quick Start: Send Your First Error
 ---
 
 ## 1. Create your account
 
 Go to [errorlens.io/signup](https://errorlens.io/signup) and enter your name, email, a password of at least 10 characters, and an **organization name**. The organization is your team's workspace; its name becomes your dashboard address — "Acme Shop" becomes `acme-shop.errorlens.io`.
 
-![The sign-up form](/screenshots/signup.png "Sign up with your work email")
+![The sign-up form](/screenshots/signup.webp "Sign up with your work email")
 
 We send a confirmation link to your email. You can start using ErrorLens straight away; confirm your address when the email arrives.
 
@@ -19,7 +20,7 @@ We send a confirmation link to your email. You can start using ErrorLens straigh
 
 A project is one app or service — "Checkout API", "Web storefront". Open **Projects**, type a name, pick the platform and click **Create project**. Every project gets a **DSN**: the address your SDK sends data to.
 
-![The projects page with a DSN and its setup guide](/screenshots/projects.png "Each project has a DSN and a setup guide for its platform")
+![The projects page with a DSN and its setup guide](/screenshots/projects.webp "Each project has a DSN and a setup guide for its platform")
 
 Click **Setup guide** for copy-paste instructions for your platform.
 

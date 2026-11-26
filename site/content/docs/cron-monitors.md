@@ -1,13 +1,14 @@
 ---
 title: Cron monitors
-description: Get alerted when a scheduled job fails, runs too long, or doesn't run at all.
+description: Monitor cron jobs and scheduled tasks with ErrorLens: check in by HTTP or SDK, and get alerted when a run is missed, fails or exceeds its runtime.
 section: Features
 order: 6
+seo_title: Cron Monitors for Scheduled Jobs
 ---
 
 Scheduled jobs fail quietly: a backup that stopped running last month looks exactly like one that is working. A cron monitor expects your job to **check in** on a schedule. If a check-in reports an error, doesn't arrive on time, or a run takes too long, ErrorLens alerts you.
 
-![A cron monitor that missed a run](/screenshots/monitor-cron.png "A job on a */15 schedule: its next expected run, the check-in command, and recent check-ins")
+![A cron monitor that missed a run](/screenshots/monitor-cron.webp "A job on a */15 schedule: its next expected run, the check-in command, and recent check-ins")
 
 ## Create a monitor
 

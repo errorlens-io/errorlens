@@ -1,8 +1,9 @@
 ---
 title: Organizations, projects and DSNs
-description: How ErrorLens is organized, what a DSN is, and how your dashboard addresses work.
+description: How ErrorLens organizes data: organizations, projects, environments and DSN keys, and how your dashboard URL and SDK configuration map to them.
 section: Getting started
 order: 3
+seo_title: Organizations, Projects and DSNs
 ---
 
 ## Organizations
@@ -34,7 +35,7 @@ Each project also has its own path in your dashboard, so you can bookmark or sha
 
 Choosing a project in any page's project picker switches to that project's path; choosing **All projects** goes back to the organization-wide view. Project names that would clash with a dashboard section (such as "settings" or "logs") get `-app` added to their slug.
 
-![The issues list scoped to one project](/screenshots/issues-project.png "/shop-api/issues — the project tag at the top clears the filter")
+![The issues list scoped to one project](/screenshots/issues-project.webp "/shop-api/issues — the project tag at the top clears the filter")
 
 ## DSNs
 

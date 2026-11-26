@@ -3,7 +3,8 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "The terms for using the hosted ErrorLens service at errorlens.io.",
+  description: "The terms of service for the hosted ErrorLens error tracking service at errorlens.io: accounts, acceptable use, data, plans, liability and termination.",
+  alternates: { canonical: "/terms/" },
 };
 
 const UPDATED = "26 November 2026";

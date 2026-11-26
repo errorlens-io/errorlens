@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/JsonLd";
 import { allDocs, getDoc } from "@/lib/docs";
+import { article, breadcrumbs, pageMeta } from "@/lib/seo";
 
 export const dynamicParams = false;
 
@@ -11,7 +13,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const d = getDoc(slug);
-  return { title: d.title, description: d.description, alternates: { canonical: `/docs/${slug}/` } };
+  return pageMeta({ title: d.seoTitle, description: d.description, path: `/docs/${slug}/`, type: "article" });
 }
 
 export default async function DocPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -23,6 +25,10 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
   const next = list[i + 1];
   return (
     <>
+      <JsonLd graph={[
+        article({ title: doc.title, description: doc.description, path: `/docs/${slug}/`, section: doc.section }),
+        breadcrumbs([{ name: "Home", path: "/" }, { name: "Docs", path: "/docs/" }, { name: doc.title, path: `/docs/${slug}/` }]),
+      ]} />
       <article className="prose">
         <p className="muted" style={{ margin: "0 0 6px", fontSize: "0.9rem" }}>{doc.section}</p>
         <h1>{doc.title}</h1>

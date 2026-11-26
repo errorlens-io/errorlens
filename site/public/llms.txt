@@ -1,0 +1,35 @@
+# ErrorLens
+
+> ErrorLens is open-source error tracking, performance monitoring (APM), log management, and cron and uptime monitoring. It runs as one container plus Postgres (self-hosted, free, AGPL-3.0) or as a hosted service at errorlens.io with a free plan of 5,000 error events a month. Secrets are scrubbed before anything is stored.
+
+Key facts:
+- SDKs (MIT, zero dependencies): Python `pip install errorlens`; Node.js `npm install @errorlenshq/node`; browser `npm install @errorlenshq/browser`.
+- Python integrations: Django, Flask, FastAPI, Starlette, Celery, SQLAlchemy, httpx, logging.
+- Node.js: any http server, Express, Fastify, Koa, Hapi, serverless; browser: any framework, React, Next.js.
+- OpenTelemetry: OTLP/HTTP traces (/v1/traces) and logs (/v1/logs), protobuf or JSON.
+- Other languages: any SDK that speaks the standard error-envelope protocol works with an ErrorLens DSN.
+- Source: https://github.com/errorlenshq
+
+## Guides
+- [Open-source error tracking](https://errorlens.io/error-tracking/)
+- [Self-hosted error tracking](https://errorlens.io/self-hosted-error-tracking/)
+- [Open-source APM](https://errorlens.io/apm/)
+- [OpenTelemetry backend](https://errorlens.io/opentelemetry-backend/)
+- [Log management](https://errorlens.io/log-management/)
+- [Cron job monitoring](https://errorlens.io/cron-job-monitoring/)
+- [Uptime monitoring](https://errorlens.io/uptime-monitoring/)
+- [Pricing](https://errorlens.io/pricing/)
+
+## Framework guides
+- [Python](https://errorlens.io/error-tracking/python/), [Django](https://errorlens.io/error-tracking/django/), [Flask](https://errorlens.io/error-tracking/flask/), [FastAPI](https://errorlens.io/error-tracking/fastapi/), [Celery](https://errorlens.io/error-tracking/celery/)
+- [Node.js](https://errorlens.io/error-tracking/nodejs/), [Express](https://errorlens.io/error-tracking/express/), [JavaScript](https://errorlens.io/error-tracking/javascript/), [React](https://errorlens.io/error-tracking/react/), [Next.js](https://errorlens.io/error-tracking/nextjs/)
+
+## Documentation
+- [Docs index](https://errorlens.io/docs/)
+- [Quick start](https://errorlens.io/docs/quickstart/)
+- [Python SDK](https://errorlens.io/docs/python/)
+- [Node.js SDK](https://errorlens.io/docs/javascript-node/)
+- [Browser SDK](https://errorlens.io/docs/javascript-browser/)
+- [OpenTelemetry](https://errorlens.io/docs/opentelemetry/)
+- [Self-hosting](https://errorlens.io/docs/self-hosting/)
+- [Data scrubbing](https://errorlens.io/docs/data-scrubbing/)

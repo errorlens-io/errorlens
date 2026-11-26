@@ -1,13 +1,14 @@
 ---
 title: Usage and quotas
-description: How events are counted, what the free plan includes, and what happens at the limit.
+description: How ErrorLens counts events, what the free hosted plan includes, what happens at the monthly limit, rate limits, and how to reduce event volume.
 section: Team & account
 order: 2
+seo_title: Usage and Quotas
 ---
 
 Owners can see their organization's usage under **Settings → Usage & billing**.
 
-![Usage and billing](/screenshots/settings-billing.png "Events received this month against the monthly quota")
+![Usage and billing](/screenshots/settings-billing.webp "Events received this month against the monthly quota")
 
 ## What counts
 

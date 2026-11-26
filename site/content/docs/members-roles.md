@@ -1,8 +1,9 @@
 ---
 title: Members and roles
-description: Invite your team and control what each person can do.
+description: Invite your team to ErrorLens and control access with owner, admin, member and viewer roles per organization, plus SSO auto-join for your domain.
 section: Team & account
 order: 1
+seo_title: Members, Roles and Invitations
 ---
 
 ## Inviting people
@@ -16,7 +17,7 @@ Admins and owners can invite people from **Settings → Members**:
 
 Pending invitations are listed below the members; revoke one to make its link stop working.
 
-![The members page](/screenshots/settings-members.png "Members with their roles, and pending invitations")
+![The members page](/screenshots/settings-members.webp "Members with their roles, and pending invitations")
 
 ## Roles
 

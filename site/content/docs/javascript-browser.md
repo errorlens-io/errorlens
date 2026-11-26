@@ -1,8 +1,9 @@
 ---
 title: Browser JavaScript
-description: Report errors from websites and single-page apps with @errorlenshq/browser.
+description: Set up @errorlenshq/browser for websites and single-page apps: uncaught errors, breadcrumbs, page-load tracing, web vitals, React error boundaries.
 section: Sending data
 order: 3
+seo_title: Browser JavaScript SDK Setup
 ---
 
 ## Install

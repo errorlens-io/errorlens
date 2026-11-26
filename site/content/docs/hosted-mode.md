@@ -1,8 +1,9 @@
 ---
 title: Hosted mode
-description: Run ErrorLens as a multi-tenant service with sign-up, per-organization subdomains and quotas.
+description: Run ErrorLens as a multi-tenant hosted service: organization subdomains, public sign-up, quotas, usage metering and billing hooks on Postgres RLS.
 section: Self-hosting
 order: 4
+seo_title: Hosted Mode: Multi-Tenant Setup
 ---
 
 The same ErrorLens server that runs on one team's machine can also run a service for many organizations — this is how errorlens.io works. These settings are for people who want to offer ErrorLens to others; a single team doesn't need them.

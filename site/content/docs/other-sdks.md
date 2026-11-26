@@ -1,8 +1,9 @@
 ---
 title: Other languages
-description: Use ErrorLens from Go, Java, PHP, Ruby, .NET, Rust, mobile apps and more.
+description: Use ErrorLens from Go, Java, PHP, Ruby, .NET, Rust and mobile apps with any SDK that speaks the standard error-envelope protocol, plus rate limits.
 section: Sending data
 order: 4
+seo_title: Error Tracking for Other Languages
 ---
 
 ErrorLens accepts the standard **error-envelope protocol** used by the most widely deployed open-source error-reporting SDKs. If your language has an SDK that is configured with a DSN like `https://<key>@<host>/<project-id>`, it almost certainly works with ErrorLens: install it as its own documentation describes and give it your ErrorLens DSN.

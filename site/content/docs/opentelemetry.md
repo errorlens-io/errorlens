@@ -1,8 +1,9 @@
 ---
 title: OpenTelemetry
-description: Send traces and logs from any OpenTelemetry SDK or Collector over OTLP/HTTP.
+description: Send traces and logs to ErrorLens from any OpenTelemetry SDK or Collector over OTLP/HTTP, with environment variables, Collector config and data mapping.
 section: Sending data
 order: 5
+seo_title: OpenTelemetry (OTLP) Setup
 ---
 
 ErrorLens accepts OpenTelemetry data over **OTLP/HTTP**, in both protobuf and JSON encoding, optionally gzip-compressed. Use it for languages without an ErrorLens SDK, or if your services are already instrumented with OpenTelemetry.

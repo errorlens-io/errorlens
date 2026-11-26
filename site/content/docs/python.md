@@ -1,8 +1,9 @@
 ---
 title: Python
-description: Report errors, performance data and logs from Python apps with the errorlens package.
+description: Set up the errorlens Python SDK: report exceptions, add context, trace Django, Flask, FastAPI and Celery, send logs and cron check-ins. No dependencies.
 section: Sending data
 order: 1
+seo_title: Python SDK: Error Tracking Setup
 ---
 
 ## Install

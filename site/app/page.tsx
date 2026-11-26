@@ -1,11 +1,30 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/JsonLd";
+import { Plans } from "@/components/Plans";
+import { FRAMEWORKS } from "@/lib/landing";
+import { faqPage, pageMeta, software, webPage } from "@/lib/seo";
+
+const TITLE = "ErrorLens — Open-Source Error Tracking & Monitoring";
+const DESCRIPTION =
+  "Open-source error tracking, performance monitoring, logs, cron and uptime monitoring. Secrets scrubbed before storage. Free hosted plan or self-host on Postgres.";
+export const metadata: Metadata = pageMeta({ title: TITLE, description: DESCRIPTION, path: "/", absoluteTitle: true });
+
+const FAQ = [
+  { q: "What is ErrorLens?", a: "ErrorLens is an open-source platform for error tracking, performance monitoring (APM), logs, and cron and uptime monitoring. It captures exceptions from your apps, groups them into issues with full context, and alerts your team." },
+  { q: "Is ErrorLens free?", a: "Yes. The hosted free plan includes 5,000 error events a month with unlimited projects and team members, and self-hosting is free with no limits." },
+  { q: "Can I self-host ErrorLens?", a: "Yes. ErrorLens runs as a single container with Postgres as its only dependency — no Kafka, Redis or ClickHouse. Docker Compose and a Helm chart are included." },
+  { q: "Which languages and frameworks are supported?", a: "Python (Django, Flask, FastAPI, Celery), Node.js (Express, Fastify, Koa, Hapi), browser JavaScript (React, Next.js and any framework) with our own SDKs, any language through OpenTelemetry, and any SDK that speaks the standard error-envelope protocol." },
+  { q: "How does ErrorLens protect sensitive data?", a: "Passwords, tokens, API keys, cookies, card numbers and private keys are scrubbed in the SDK and again on the server before anything is stored. IP addresses are truncated, stored events can be encrypted with your own key, and every event view is audited." },
+  { q: "Does ErrorLens support OpenTelemetry?", a: "Yes. Send traces and logs over OTLP/HTTP (protobuf or JSON) and ErrorLens shows trace waterfalls, latency percentiles, log search and errors from spans." },
+];
 
 const FEATURES = [
-  { title: "Error tracking", href: "/docs/issues/", text: "Errors are grouped into issues with full stack traces, source context, breadcrumbs, tags and the release they started in. Resolved issues reopen if they come back." },
-  { title: "Performance & traces", href: "/docs/performance/", text: "p50 and p95 latency, throughput and failure rate for every endpoint, and a trace view that joins requests, errors and logs." },
-  { title: "Logs", href: "/docs/logs/", text: "Structured logs from your SDK or OpenTelemetry, with search, severity filters and live tail, linked to the trace they belong to." },
-  { title: "Uptime monitors", href: "/docs/uptime-monitors/", text: "Check your URLs every minute from the server and get alerted the moment one stops answering or returns an error." },
-  { title: "Cron monitors", href: "/docs/cron-monitors/", text: "Scheduled jobs report each run with one HTTP call. Missed runs, failures and jobs that run too long raise an alert." },
+  { title: "Error tracking", href: "/error-tracking/", text: "Errors are grouped into issues with full stack traces, source context, breadcrumbs, tags and the release they started in. Resolved issues reopen if they come back." },
+  { title: "Performance & traces", href: "/apm/", text: "p50 and p95 latency, throughput and failure rate for every endpoint, and a trace view that joins requests, errors and logs." },
+  { title: "Logs", href: "/log-management/", text: "Structured logs from your SDK or OpenTelemetry, with search, severity filters and live tail, linked to the trace they belong to." },
+  { title: "Uptime monitors", href: "/uptime-monitoring/", text: "Check your URLs every minute from the server and get alerted the moment one stops answering or returns an error." },
+  { title: "Cron monitors", href: "/cron-job-monitoring/", text: "Scheduled jobs report each run with one HTTP call. Missed runs, failures and jobs that run too long raise an alert." },
   { title: "Alerts", href: "/docs/alerts/", text: "New issues, regressions and spikes go to email, Slack, Discord or signed webhooks, with cooldowns so you are not flooded." },
   { title: "Releases & source maps", href: "/docs/releases-source-maps/", text: "See which release introduced an error. Upload JavaScript source maps from CI and get readable stack traces." },
   { title: "Teams", href: "/docs/members-roles/", text: "Organizations, projects, owner / admin / member / viewer roles, invitations, API tokens, two-factor login and single sign-on." },
@@ -23,7 +42,9 @@ const PRIVACY = [
 export default function Home() {
   return (
     <main>
+      <JsonLd graph={[webPage({ title: TITLE, description: DESCRIPTION, path: "/" }), software(), faqPage(FAQ)]} />
       <section className="hero wrap">
+        <p className="eyebrow">Open-source error tracking · APM · logs</p>
         <h1>
           See every error in your app.<br />
           <em>Keep every secret out of it.</em>
@@ -38,7 +59,7 @@ export default function Home() {
         </div>
         <p className="note">Free plan: 5,000 events a month, no card required. Self-hosting is free forever.</p>
         <div className="hero-shot">
-          <img src="/screenshots/issues.png" alt="The ErrorLens issues list grouped by error, with event counts and sparkline graphs" />
+          <img src="/screenshots/issues.webp" width={1360} height={860} fetchPriority="high" alt="The ErrorLens issues list: errors grouped into issues with event counts, affected users and sparkline graphs" />
         </div>
       </section>
 
@@ -51,7 +72,7 @@ export default function Home() {
               <div className="card" key={f.title}>
                 <h3>{f.title}</h3>
                 <p>{f.text}</p>
-                <Link className="more" href={f.href}>Learn more →</Link>
+                <Link className="more" href={f.href}>{f.title} →</Link>
               </div>
             ))}
           </div>
@@ -68,13 +89,13 @@ export default function Home() {
             </ul>
             <p><Link href="/docs/data-scrubbing/">How data scrubbing works →</Link></p>
           </div>
-          <img src="/screenshots/issue-detail.png" alt="An issue's stack trace where an API key variable shows as [Filtered]" />
+          <img src="/screenshots/issue-detail.webp" width={1360} height={1500} loading="lazy" alt="An issue's stack trace in ErrorLens where an API key variable shows as [Filtered]" />
         </div>
       </section>
 
       <section className="band soft">
         <div className="wrap split">
-          <img src="/screenshots/trace.png" alt="A trace showing a request's spans, the error it raised and its log lines on one timeline" />
+          <img src="/screenshots/trace.webp" width={1360} height={860} loading="lazy" alt="A distributed trace in ErrorLens showing a request's spans, the error it raised and its log lines on one timeline" />
           <div>
             <h2>Works with the SDKs you already use</h2>
             <p className="sub">Install our SDK, or point any SDK that speaks the standard error-envelope protocol at your DSN. OpenTelemetry traces and logs work too.</p>
@@ -82,7 +103,7 @@ export default function Home() {
 
 import errorlens
 errorlens.init(dsn="https://<key>@errorlens.io/1")`}</pre>
-            <p><Link href="/docs/python/">Python</Link> · <Link href="/docs/javascript-node/">Node.js</Link> · <Link href="/docs/javascript-browser/">Browser</Link> · <Link href="/docs/other-sdks/">Other languages</Link> · <Link href="/docs/opentelemetry/">OpenTelemetry</Link></p>
+            <p><Link href="/error-tracking/python/">Python</Link> · <Link href="/error-tracking/nodejs/">Node.js</Link> · <Link href="/error-tracking/javascript/">Browser JavaScript</Link> · <Link href="/docs/other-sdks/">Other languages</Link> · <Link href="/opentelemetry-backend/">OpenTelemetry</Link></p>
           </div>
         </div>
       </section>
@@ -91,42 +112,32 @@ errorlens.init(dsn="https://<key>@errorlens.io/1")`}</pre>
         <div className="wrap">
           <h2>Pricing</h2>
           <p className="sub">Start on the hosted free plan, or run ErrorLens yourself at no cost.</p>
-          <div className="plans">
-            <div className="card plan">
-              <h3>Free</h3>
-              <div className="price">$0</div>
-              <p>Hosted at errorlens.io</p>
-              <ul className="checks">
-                <li>5,000 events per month</li>
-                <li>Errors, performance, logs and monitors</li>
-                <li>Unlimited projects and team members</li>
-                <li>30 days of history by default</li>
-              </ul>
-              <a href="/signup" className="btn">Create your account</a>
-            </div>
-            <div className="card plan">
-              <h3>Self-hosted</h3>
-              <div className="price">$0</div>
-              <p>On your own servers</p>
-              <ul className="checks">
-                <li>Unlimited events — limited only by your hardware</li>
-                <li>One container plus Postgres</li>
-                <li>Data never leaves your network</li>
-                <li>AGPL-3.0 open source</li>
-              </ul>
-              <Link href="/docs/self-hosting/" className="btn ghost">Self-hosting guide</Link>
-            </div>
-            <div className="card plan">
-              <h3>Team</h3>
-              <div className="price">Soon</div>
-              <p>Hosted, for larger volumes</p>
-              <ul className="checks">
-                <li>Higher monthly event quotas</li>
-                <li>Longer retention</li>
-                <li>Priority support</li>
-              </ul>
-              <a href="mailto:hello@errorlens.io" className="btn ghost">Tell me when it is ready</a>
-            </div>
+          <Plans />
+        </div>
+      </section>
+
+      <section className="band soft" id="frameworks">
+        <div className="wrap">
+          <h2>Error tracking for your stack</h2>
+          <p className="sub">Step-by-step setup guides for the frameworks you use, each in a few lines of code.</p>
+          <div className="pills">
+            {FRAMEWORKS.map((f) => <Link key={f.path} href={f.path} className="pill">{f.nav} error tracking</Link>)}
+            <Link href="/opentelemetry-backend/" className="pill">OpenTelemetry</Link>
+            <Link href="/docs/other-sdks/" className="pill">Other languages</Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="band" id="faq">
+        <div className="wrap narrow">
+          <h2>Frequently asked questions</h2>
+          <div className="faq">
+            {FAQ.map((f) => (
+              <details key={f.q}>
+                <summary><h3>{f.q}</h3></summary>
+                <p>{f.a}</p>
+              </details>
+            ))}
           </div>
         </div>
       </section>

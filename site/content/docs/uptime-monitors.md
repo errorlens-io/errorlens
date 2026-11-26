@@ -1,13 +1,14 @@
 ---
 title: Uptime monitors
-description: Check that your websites and APIs answer, and get alerted when they stop.
+description: Check websites and APIs every 30 seconds to every hour with ErrorLens uptime monitors, see response times and get alerted when they go down or recover.
 section: Features
 order: 5
+seo_title: Uptime Monitors for URLs and APIs
 ---
 
 An uptime monitor requests a URL on a schedule from the ErrorLens server. If the request fails, times out or returns an error status, the monitor turns red and your chosen alert channels are notified. When it answers again, you get a "recovered" notification.
 
-![The monitors list](/screenshots/monitors.png "Uptime checks and cron jobs together, with their status and last check")
+![The monitors list](/screenshots/monitors.webp "Uptime checks and cron jobs together, with their status and last check")
 
 ## Create one
 
@@ -29,7 +30,7 @@ A check passes when the URL answers with a status below 400 â€” any 2xx or 3xx â
 
 Each check is recorded with its result and how long the request took.
 
-![An uptime monitor's history](/screenshots/monitor-uptime.png "Recent checks with their result and response time")
+![An uptime monitor's history](/screenshots/monitor-uptime.webp "Recent checks with their result and response time")
 
 ## Alerts
 

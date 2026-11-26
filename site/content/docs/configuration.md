@@ -1,8 +1,9 @@
 ---
 title: Configuration reference
-description: Every environment variable a self-hosted ErrorLens server reads.
+description: Every ErrorLens server setting: database, public URL, email, SSO, encryption, retention, hosted mode and billing, configured with environment variables.
 section: Self-hosting
 order: 2
+seo_title: Server Configuration Reference
 ---
 
 ErrorLens is configured with environment variables. With Docker Compose, put them in `deploy/.env`.

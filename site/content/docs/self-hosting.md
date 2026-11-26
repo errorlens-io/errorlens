@@ -1,8 +1,9 @@
 ---
 title: Self-hosting with Docker
-description: Run ErrorLens on your own server with Docker Compose — one container and Postgres.
+description: Self-host ErrorLens with Docker Compose: one container plus Postgres. Install, configure HTTPS, email and backups, upgrade, and scale web and workers.
 section: Self-hosting
 order: 1
+seo_title: Self-Hosting with Docker Compose
 ---
 
 ErrorLens is a single Go program with the dashboard built in, plus a PostgreSQL database. There is no Kafka, Redis or ClickHouse to run. A small server — 1 CPU and 1 GB of memory — handles a typical team; give Postgres more memory and disk as your volume grows.

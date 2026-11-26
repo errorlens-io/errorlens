@@ -1,8 +1,9 @@
 ---
 title: Releases and source maps
-description: Track which version introduced an error, and turn minified JavaScript stack traces back into your source code.
+description: Track which release introduced an error and upload JavaScript source maps from CI so ErrorLens shows original files and lines for minified code.
 section: Features
 order: 8
+seo_title: Releases and JavaScript Source Maps
 ---
 
 ## Releases
@@ -19,7 +20,7 @@ ErrorLens.init({ dsn: "…", release: "web@1.8.0" });
 
 ErrorLens then records the release on every event and creates the release automatically the first time it sees it. The **Releases** page lists each version with its project, how many new issues appeared in it, how many source files were uploaded for it, and when it last sent an event.
 
-![The releases page](/screenshots/releases.png "Each release with the new issues it introduced")
+![The releases page](/screenshots/releases.webp "Each release with the new issues it introduced")
 
 Click the number of new issues to see them. On each issue, *first seen* and *last seen* show the release they happened in, and the release tag breakdown shows which versions are affected.
 

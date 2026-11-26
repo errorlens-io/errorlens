@@ -1,0 +1,5 @@
+/** Structured data for search engines, as one @graph per page. */
+export function JsonLd({ graph }: { graph: Record<string, unknown>[] }) {
+  const json = JSON.stringify({ "@context": "https://schema.org", "@graph": graph }).replace(/</g, "\\u003c");
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: json }} />;
+}

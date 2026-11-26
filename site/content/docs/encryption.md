@@ -1,8 +1,9 @@
 ---
 title: Encryption
-description: How event data is encrypted in transit and at rest.
+description: Encrypt every stored ErrorLens event with AES-256-GCM using your own key: how to enable it, rotate keys, back them up and what stays searchable.
 section: Privacy & security
 order: 2
+seo_title: Encryption of Stored Events
 ---
 
 ## In transit

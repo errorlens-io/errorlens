@@ -1,13 +1,14 @@
 ---
 title: Issues and grouping
-description: How ErrorLens groups error events into issues, and how to triage them.
+description: How ErrorLens groups errors into issues, how fingerprints work, and how to resolve, ignore, merge and search issues and track regressions.
 section: Features
 order: 1
+seo_title: Issues and Error Grouping
 ---
 
 Your apps may send thousands of error events, but most of them are the same few bugs. ErrorLens groups events with the same cause into an **issue**, so you see one row per problem, with how often it happens and when it started.
 
-![The issues list](/screenshots/issues.png "Each row is one issue: title, where it happened, project, last and first seen, a 24-hour graph and the event count")
+![The issues list](/screenshots/issues.webp "Each row is one issue: title, where it happened, project, last and first seen, a 24-hour graph and the event count")
 
 ## The issues list
 

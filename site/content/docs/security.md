@@ -1,8 +1,9 @@
 ---
 title: Account security
-description: Two-factor login, single sign-on, API tokens, sessions and the audit log.
+description: Protect ErrorLens accounts with two-factor authentication, OpenID Connect single sign-on, session controls, API tokens and the audit log.
 section: Privacy & security
 order: 3
+seo_title: Account Security: 2FA and SSO
 ---
 
 ## Passwords
@@ -13,7 +14,7 @@ Passwords must be at least 10 characters and are stored as Argon2id hashes — n
 
 Two-factor authentication (2FA) asks for a 6-digit code from an authenticator app after your password, so a stolen password alone isn't enough.
 
-![The account page](/screenshots/account.png "Password, two-factor authentication and your organizations")
+![The account page](/screenshots/account.webp "Password, two-factor authentication and your organizations")
 
 1. Open **Account** (your email address at the top right) and click **Set up two-factor authentication**.
 2. Add the account to an authenticator app — 1Password, Google Authenticator, Authy and others all work — with the link or setup key shown.
@@ -40,7 +41,7 @@ Send it as a bearer token:
 curl -H "Authorization: Bearer el_…" https://errorlens.io/api/0/organizations/acme-shop/projects
 ```
 
-![API tokens](/screenshots/settings-tokens.png "Tokens with their role, creator and last use")
+![API tokens](/screenshots/settings-tokens.webp "Tokens with their role, creator and last use")
 
 ## Audit log
 
@@ -56,7 +57,7 @@ curl -H "Authorization: Bearer el_…" https://errorlens.io/api/0/organizations/
 
 The audit log can't be edited or deleted, by anyone in the organization or by the application itself.
 
-![The audit log](/screenshots/settings-audit.png "Who did what, and when")
+![The audit log](/screenshots/settings-audit.webp "Who did what, and when")
 
 ## Reporting a vulnerability
 

@@ -149,3 +149,41 @@ pre.term { background: var(--code-bg); color: #e5e7eb; border: 1px solid var(--l
 
 /* Brand name: "Lens" in the logo gradient */
 .brand-lens { background: linear-gradient(90deg, #3B82F6, #8B5CF6); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* landing pages */
+.skip { position: absolute; left: -9999px; }
+.skip:focus { left: 12px; top: 12px; z-index: 50; background: var(--card); padding: 8px 12px; border-radius: 8px; }
+.eyebrow { margin: 0 0 14px; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.crumbs { padding: 18px 0 0; font-size: 0.88rem; color: var(--muted); }
+.crumbs a { color: var(--muted); }
+.landing-hero { padding: 44px 20px 48px; max-width: 900px; }
+.landing-hero h1 { font-size: clamp(2rem, 4.4vw, 3.1rem); line-height: 1.12; letter-spacing: -0.02em; margin: 0 0 18px; }
+.landing-hero .lead { font-size: 1.16rem; color: var(--muted); margin: 0 0 28px; max-width: 760px; }
+.landing-hero .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+.landing-shot { margin: 0 auto 56px; }
+.landing-shot img { display: block; width: 100%; height: auto; max-width: 1080px; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 24px 70px rgba(0,0,0,0.3); }
+.wrap.narrow { max-width: 880px; }
+.landing p.body { font-size: 1.04rem; margin: 0 0 16px; }
+.landing .checks li { font-size: 1.02rem; }
+.codeblock { margin: 18px 0 0; }
+.codeblock figcaption { font-size: 0.82rem; color: var(--muted); margin: 0 0 6px; font-weight: 600; }
+.codeblock pre.term { margin: 0; white-space: pre; }
+.faq details { border: 1px solid var(--line); border-radius: 10px; background: var(--card); margin: 0 0 10px; }
+.faq summary { cursor: pointer; padding: 14px 18px; list-style: none; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary h3 { display: inline; font-size: 1.02rem; margin: 0; }
+.faq summary::after { content: "+"; float: right; color: var(--muted); font-weight: 700; }
+.faq details[open] summary::after { content: "–"; }
+.faq details p { margin: 0; padding: 0 18px 16px; color: var(--muted); }
+.card.related { color: inherit; }
+.card.related:hover { text-decoration: none; border-color: var(--accent-strong); }
+.card.related h3 { color: var(--accent); }
+.pills { display: flex; flex-wrap: wrap; gap: 10px; }
+.pill { padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--text); font-size: 0.94rem; }
+.pill:hover { text-decoration: none; border-color: var(--accent-strong); }
+.footer-grid { grid-template-columns: 1.6fr 1fr 1fr 1fr 1fr; }
+@media (max-width: 860px) {
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .split { grid-template-columns: 1fr; }
+  .main-nav { display: none; }
+}

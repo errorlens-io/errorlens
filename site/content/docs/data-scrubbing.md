@@ -1,13 +1,14 @@
 ---
 title: Data scrubbing
-description: How ErrorLens removes passwords, tokens, card numbers and other secrets before anything is stored.
+description: How ErrorLens removes passwords, tokens, API keys, cookies, card numbers and personal data before storage, and how to add your own scrubbing rules.
 section: Privacy & security
 order: 1
+seo_title: Data Scrubbing and PII Removal
 ---
 
 Error reports capture whatever was in memory when something broke: request headers, form fields, local variables, SQL, connection strings. ErrorLens removes sensitive values **on the server, before the event is queued or written to disk**. Filtered values are replaced with `[Filtered]` and never reach the database — not even temporarily.
 
-![An event with filtered values](/screenshots/issue-detail.png "An API key in a local variable, the Authorization header and a card number in the request body all show as [Filtered]")
+![An event with filtered values](/screenshots/issue-detail.webp "An API key in a local variable, the Authorization header and a card number in the request body all show as [Filtered]")
 
 Scrubbing happens even if an SDK is misconfigured to send personal data, so one mistake in one service can't leak secrets into your error tracker. Each event shows a lock badge with how many values were filtered.
 
@@ -37,7 +38,7 @@ ssn  iban  signature
 
 Each project has its own rules under **Settings → Projects → (project) → Privacy**:
 
-![Project privacy settings](/screenshots/settings-privacy.png "Default rules, IP handling and custom fields for one project")
+![Project privacy settings](/screenshots/settings-privacy.webp "Default rules, IP handling and custom fields for one project")
 
 | Setting | Use it to |
 |---|---|

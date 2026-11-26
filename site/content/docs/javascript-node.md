@@ -1,8 +1,9 @@
 ---
 title: Node.js
-description: Report errors and performance data from Node.js servers with @errorlenshq/node.
+description: Set up @errorlenshq/node: report errors and unhandled rejections, Express, Fastify, Koa and Hapi helpers, tracing, logs, cron monitors and serverless.
 section: Sending data
 order: 2
+seo_title: Node.js SDK: Error Tracking Setup
 ---
 
 ## Install

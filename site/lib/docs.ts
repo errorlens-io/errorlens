@@ -15,7 +15,7 @@ const DIR = path.join(process.cwd(), "content", "docs");
 
 export const SECTIONS = ["Getting started", "Sending data", "Features", "Privacy & security", "Team & account", "Self-hosting"];
 
-export type DocMeta = { slug: string; title: string; description: string; section: string; order: number };
+export type DocMeta = { slug: string; title: string; seoTitle: string; description: string; section: string; order: number };
 export type Doc = DocMeta & { html: string; headings: { id: string; text: string }[] };
 
 function parse(file: string): { meta: Record<string, string>; body: string } {
@@ -38,7 +38,7 @@ export function allDocs(): DocMeta[] {
       const { meta } = parse(f);
       for (const k of ["title", "description", "section", "order"]) if (!meta[k]) throw new Error(`${f}: missing ${k}`);
       if (!SECTIONS.includes(meta.section)) throw new Error(`${f}: unknown section ${meta.section}`);
-      return { slug: f.replace(/\.md$/, ""), title: meta.title, description: meta.description, section: meta.section, order: Number(meta.order) };
+      return { slug: f.replace(/\.md$/, ""), title: meta.title, seoTitle: meta.seo_title || meta.title, description: meta.description, section: meta.section, order: Number(meta.order) };
     })
     .sort((a, b) => SECTIONS.indexOf(a.section) - SECTIONS.indexOf(b.section) || a.order - b.order);
 }

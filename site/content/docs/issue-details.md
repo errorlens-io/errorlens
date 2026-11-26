@@ -1,13 +1,14 @@
 ---
 title: Issue details
-description: Stack traces, breadcrumbs, request data, tags and every event of an issue.
+description: Read an ErrorLens issue: stack traces with source context, breadcrumbs, tags, request data, users, releases and the trace and logs around each event.
 section: Features
 order: 2
+seo_title: Issue Details: Stack Traces & Context
 ---
 
 Open an issue to see everything ErrorLens knows about it: counts, the stack trace, what happened before the error, and how it is spread across releases, environments and users.
 
-![An issue with its stack trace, breadcrumbs and tag breakdown](/screenshots/issue-detail.png "The ZeroDivisionError issue: summary, latest event, stack trace with local variables, breadcrumbs and tags")
+![An issue with its stack trace, breadcrumbs and tag breakdown](/screenshots/issue-detail.webp "The ZeroDivisionError issue: summary, latest event, stack trace with local variables, breadcrumbs and tags")
 
 ## Summary
 

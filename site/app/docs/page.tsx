@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { allDocs, SECTIONS } from "@/lib/docs";
+import { pageMeta } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "Documentation",
-  description: "Guides for every ErrorLens feature: sending errors, performance data and logs, alerts, monitors, privacy settings and self-hosting.",
-};
+  description: "ErrorLens documentation: set up error tracking for Python, Node.js and the browser, performance tracing, logs, alerts, monitors, privacy and self-hosting.",
+  path: "/docs/",
+});
 
 export default function DocsIndex() {
   const docs = allDocs();

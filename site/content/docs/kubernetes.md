@@ -1,8 +1,9 @@
 ---
 title: Kubernetes
-description: Install ErrorLens on Kubernetes with the Helm chart.
+description: Deploy ErrorLens on Kubernetes with the Helm chart: values, external Postgres, ingress and TLS, scaling web and worker roles, and upgrades.
 section: Self-hosting
 order: 3
+seo_title: Self-Hosting on Kubernetes (Helm)
 ---
 
 The repository includes a Helm chart in `deploy/helm/errorlens`. It runs database migrations as a job before each install or upgrade, then separate **web** and **worker** deployments.

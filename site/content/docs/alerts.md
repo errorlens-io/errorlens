@@ -1,13 +1,14 @@
 ---
 title: Alerts
-description: Send new issues, regressions and error spikes to email, Slack, Discord or your own webhook.
+description: Configure ErrorLens alerts for new issues, regressions, spikes and monitors, delivered to email, Slack, Discord or signed webhooks with cooldowns.
 section: Features
 order: 7
+seo_title: Alerts: Email, Slack, Discord, Webhooks
 ---
 
 Alerts have two parts: **destinations** say *where* notifications go, and **rules** say *when* to send them. The **Alerts** page manages both, and lists every notification that was sent. Admins and owners can change alerts.
 
-![The alerts page](/screenshots/alerts.png "Destinations, rules and recent notifications")
+![The alerts page](/screenshots/alerts.webp "Destinations, rules and recent notifications")
 
 ## Destinations
 

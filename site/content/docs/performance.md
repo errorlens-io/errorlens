@@ -1,13 +1,14 @@
 ---
 title: Performance and traces
-description: Latency percentiles, throughput and failure rates per endpoint, and traces that join requests, errors and logs.
+description: Monitor latency, throughput and failure rate per endpoint with ErrorLens, and follow distributed traces across services with spans, errors and logs.
 section: Features
 order: 3
+seo_title: Performance Monitoring and Tracing
 ---
 
 The **Performance** page shows how fast your endpoints and background jobs are, how much traffic they get and how often they fail. Every number comes from *transactions* — recordings of one request or job — sent by an SDK or OpenTelemetry.
 
-![The performance overview](/screenshots/performance.png "Every endpoint with its throughput, median (p50) and 95th percentile (p95) duration, and failure rate")
+![The performance overview](/screenshots/performance.webp "Every endpoint with its throughput, median (p50) and 95th percentile (p95) duration, and failure rate")
 
 ## Turning it on
 
@@ -42,7 +43,7 @@ The 1-hour and 24-hour views are computed from every individual request. The 7-d
 
 Click a transaction name to list its individual requests, slowest first, with their duration, status, release and environment. Open one to see where the time went.
 
-![The transactions of one endpoint](/screenshots/performance-endpoint.png "Individual POST /api/checkout requests, slowest first")
+![The transactions of one endpoint](/screenshots/performance-endpoint.webp "Individual POST /api/checkout requests, slowest first")
 
 ## Traces
 
@@ -52,6 +53,6 @@ A trace follows one request through your system. The trace view joins everything
 - **Waterfall** — the transaction and its spans (database queries, outgoing HTTP calls, cache lookups…) on a timeline, so the slow step stands out
 - **Logs** — log lines written during the request
 
-![A trace with its error, spans and logs](/screenshots/trace.png "One checkout request: the error it raised, its database query and payment call, and its logs")
+![A trace with its error, spans and logs](/screenshots/trace.webp "One checkout request: the error it raised, its database query and payment call, and its logs")
 
 You can reach a trace from an endpoint's request list, from **View trace** on an issue's event, or from a log line's trace link.

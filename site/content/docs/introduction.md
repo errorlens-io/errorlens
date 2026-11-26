@@ -1,8 +1,9 @@
 ---
 title: What is ErrorLens?
-description: Open-source error tracking, performance monitoring, logs and uptime checks that keep sensitive data out of your reports.
+description: ErrorLens is open-source error tracking, performance monitoring and logs. Learn how it works, what it collects, and how to choose hosted or self-hosted.
 section: Getting started
 order: 1
+seo_title: What is ErrorLens? Introduction
 ---
 
 ErrorLens collects the errors, slow requests, logs and failed jobs from your applications and turns them into a short list of problems you can act on. It is open source, and you can use it two ways:
@@ -10,7 +11,7 @@ ErrorLens collects the errors, slow requests, logs and failed jobs from your app
 - **Hosted at errorlens.io** — sign up, create a project and start sending data in minutes. Each organization gets its own address, like `acme.errorlens.io`.
 - **Self-hosted** — run one container and a Postgres database on your own servers. Your data never leaves your network. See [Self-hosting](/docs/self-hosting/).
 
-![The issues list: errors grouped into issues with counts, first and last seen, and a 24-hour graph](/screenshots/issues.png "Errors from every project, grouped into issues")
+![The issues list: errors grouped into issues with counts, first and last seen, and a 24-hour graph](/screenshots/issues.webp "Errors from every project, grouped into issues")
 
 ## What it does
 
