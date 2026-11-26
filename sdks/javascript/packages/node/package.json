@@ -6,7 +6,7 @@
   "homepage": "https://errorlens.io",
   "repository": {
     "type": "git",
-    "url": "https://github.com/errorlens-io/errorlens.git",
+    "url": "git+https://github.com/errorlens-io/errorlens.git",
     "directory": "sdks/javascript/packages/node"
   },
   "keywords": [
@@ -35,5 +35,11 @@
   },
   "dependencies": {
     "@sentry/node": "^11.17.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "bugs": {
+    "url": "https://github.com/errorlens-io/errorlens/issues"
   }
 }

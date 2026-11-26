@@ -22,6 +22,8 @@ dependencies = ["sentry-sdk>=2.0,<4"]
 
 [project.urls]
 Homepage = "https://errorlens.io"
+Documentation = "https://errorlens.io/docs/python/"
+Issues = "https://github.com/errorlens-io/errorlens/issues"
 Source = "https://github.com/errorlens-io/errorlens"
 
 [tool.hatch.version]
