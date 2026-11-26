@@ -10,12 +10,19 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      target:
+        description: Which registry to publish to
+        type: choice
+        options: [all, pypi, npm]
+        default: all
 
 permissions:
   contents: read
 
 jobs:
   pypi:
+    if: github.event_name == 'push' || inputs.target != 'npm'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -41,6 +48,7 @@ jobs:
           packages-dir: sdks/python/dist
 
   npm:
+    if: github.event_name == 'push' || inputs.target != 'pypi'
     runs-on: ubuntu-latest
     environment: npm
     permissions:
