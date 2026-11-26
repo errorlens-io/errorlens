@@ -180,7 +180,7 @@ func (s *Server) createProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	org := orgFrom(r.Context())
-	p := Project{ID: uuid.New(), Name: req.Name, Slug: slugify(req.Name), Platform: req.Platform}
+	p := Project{ID: uuid.New(), Name: req.Name, Slug: projectSlug(req.Name), Platform: req.Platform}
 	var seq int64
 	ctx := r.Context()
 	err = s.db.InScope(ctx, scope(r), func(tx pgx.Tx) error {
@@ -251,6 +251,41 @@ func slugify(name string) string {
 	}
 	if s == "" {
 		s = "org"
+	}
+	return s
+}
+
+// reservedOrgSlugs can't be organization slugs: in tenant mode each slug is a
+// subdomain of the hosted domain, and these are kept for the service itself.
+var reservedOrgSlugs = map[string]bool{
+	"www": true, "app": true, "api": true, "admin": true, "docs": true, "doc": true, "help": true,
+	"support": true, "status": true, "blog": true, "mail": true, "email": true, "smtp": true,
+	"send": true, "rsend": true, "auth": true, "login": true, "signup": true, "account": true,
+	"accounts": true, "billing": true, "static": true, "assets": true, "cdn": true, "dashboard": true,
+	"ingest": true, "events": true, "dev": true, "staging": true, "test": true, "demo": true,
+	"security": true, "legal": true, "about": true, "errorlens": true, "root": true, "system": true,
+}
+
+// orgSlug is slugify for organizations: never a reserved name.
+func orgSlug(name string) string {
+	s := slugify(name)
+	if reservedOrgSlugs[s] {
+		s += "-org"
+	}
+	return s
+}
+
+// reservedProjectSlugs are dashboard sections: /<project>/ paths would clash.
+var reservedProjectSlugs = map[string]bool{
+	"issues": true, "performance": true, "traces": true, "logs": true, "monitors": true,
+	"releases": true, "projects": true, "alerts": true, "settings": true, "account": true,
+	"admin": true, "api": true, "invite": true, "login": true, "signup": true,
+}
+
+func projectSlug(name string) string {
+	s := slugify(name)
+	if reservedProjectSlugs[s] {
+		s += "-app"
 	}
 	return s
 }

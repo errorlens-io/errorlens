@@ -111,7 +111,7 @@ func TestCronAndUptimeMonitors(t *testing.T) {
 	key, seq := a.bootstrap("python")
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	pub, _ := url.Parse(a.srv.URL)
-	svc := &monitor.Service{DB: a.db, Log: log, HTTP: notify.NewHTTPClient(true), PublicURL: pub}
+	svc := &monitor.Service{DB: a.db, Log: log, HTTP: notify.NewHTTPClient(true), OrgURL: func(org, p string) string { return pub.String() + "/" + org + "/" + p }}
 	// The ingest handler in newApp has no monitor service; post check-ins through the service directly via a server rebuild.
 	a.worker.Handle(monitor.UptimeJob, svc.CheckUptime)
 

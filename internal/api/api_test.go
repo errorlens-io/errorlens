@@ -24,14 +24,21 @@ type client struct {
 }
 
 func newEnv(t *testing.T) (*httptest.Server, func() *client) {
+	return newEnvWith(t, nil)
+}
+
+// newEnvWith starts the API with extra environment settings.
+func newEnvWith(t *testing.T, extra map[string]string) (*httptest.Server, func() *client) {
 	t.Helper()
 	d := testutil.NewDB(t)
 	srv := httptest.NewUnstartedServer(nil)
 	srv.Start()
 	t.Cleanup(srv.Close)
-	cfg, err := config.Load(func(k string) string {
-		return map[string]string{"ERRORLENS_DATABASE_URL": "unused", "ERRORLENS_PUBLIC_URL": srv.URL}[k]
-	})
+	vars := map[string]string{"ERRORLENS_DATABASE_URL": "unused", "ERRORLENS_PUBLIC_URL": srv.URL}
+	for k, v := range extra {
+		vars[k] = v
+	}
+	cfg, err := config.Load(func(k string) string { return vars[k] })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,5 +225,59 @@ func TestSetupAccountIsVerified(t *testing.T) {
 	_, me, _ := c.do("GET", "/api/0/auth/me", nil)
 	if me["user"].(map[string]any)["emailVerified"] != true {
 		t.Fatalf("setup user not verified: %v", me)
+	}
+}
+
+func TestTenantMode(t *testing.T) {
+	_, newClient := newEnvWith(t, map[string]string{
+		"ERRORLENS_PUBLIC_URL": "https://errorlens.test", "ERRORLENS_TENANT_DOMAIN": "errorlens.test",
+	})
+	c := newClient()
+
+	// Requests from an organization subdomain pass the CSRF check; others don't.
+	setup := map[string]string{"name": "Owner", "email": "owner@example.com", "password": pw, "organizationName": "Admin"}
+	if code, _, _ := c.do("POST", "/api/0/setup", setup, "Origin", "https://evil.example"); code != 403 {
+		t.Fatalf("foreign origin = %d", code)
+	}
+	if code, _, _ := c.do("POST", "/api/0/setup", setup, "Origin", "https://x.y.errorlens.test"); code != 403 {
+		t.Fatalf("nested subdomain origin = %d", code)
+	}
+	code, body, _ := c.do("POST", "/api/0/setup", setup, "Origin", "https://acme.errorlens.test")
+	if code != 201 {
+		t.Fatalf("tenant origin setup = %d %v", code, body)
+	}
+	// "admin" is reserved as a subdomain.
+	if slug := body["organization"].(map[string]any)["slug"]; slug != "admin-org" {
+		t.Fatalf("org slug = %v", slug)
+	}
+	// The session cookie is shared with every organization subdomain.
+	req, _ := http.NewRequest("POST", c.base+"/api/0/auth/login", bytes.NewReader([]byte(`{"email":"owner@example.com","password":"`+pw+`"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	var session *http.Cookie
+	for _, ck := range resp.Cookies() {
+		if ck.Name == "errorlens_session" {
+			session = ck
+		}
+	}
+	if resp.StatusCode != 204 || session == nil || session.Domain != "errorlens.test" {
+		t.Fatalf("login = %d, cookie %+v", resp.StatusCode, session)
+	}
+	cookie := "errorlens_session=" + session.Value
+
+	// Project slugs never collide with dashboard sections.
+	code, body, _ = c.do("POST", "/api/0/organizations/admin-org/projects", map[string]string{"name": "Settings", "platform": "python"},
+		"Origin", "https://admin-org.errorlens.test", "Cookie", cookie)
+	if code != 201 || body["slug"] != "settings-app" {
+		t.Fatalf("project = %d %v", code, body)
+	}
+
+	_, cfgBody, _ := c.do("GET", "/api/0/auth/config", nil)
+	if cfgBody["tenantDomain"] != "errorlens.test" {
+		t.Fatalf("auth config = %v", cfgBody)
 	}
 }

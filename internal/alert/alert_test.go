@@ -72,7 +72,7 @@ func TestNewIssueAndRegressionAlerts(t *testing.T) {
 
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	pub, _ := url.Parse("https://errors.example.com")
-	eng := &alert.Engine{DB: d, Log: log, Sender: &notify.Sender{HTTP: notify.NewHTTPClient(true)}, PublicURL: pub}
+	eng := &alert.Engine{DB: d, Log: log, Sender: &notify.Sender{HTTP: notify.NewHTTPClient(true)}, OrgURL: func(org, p string) string { return pub.String() + "/" + org + "/" + p }}
 	w := queue.NewWorker(d.Pool, log)
 	proc := &process.Processor{DB: d, OnOutcome: eng.OnOutcome}
 	w.Handle(alert.EvaluateJob, eng.Evaluate)

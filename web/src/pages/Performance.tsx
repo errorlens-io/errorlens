@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, Project, TraceView, TxRow, TxSummary } from "../api";
-import { linkProps, setQuery } from "../router";
+import { linkProps, setQuery, base } from "../router";
 import { Empty, formatCount, TimeAgo } from "../ui";
 
 const offset = (d: number) => (d < 0 ? `−${ms(-d)}` : `+${ms(d)}`);
@@ -50,7 +50,7 @@ export function PerformancePage({ org, search }: { org: string; search: string }
             <tbody>
               {rows.map((r) => (
                 <tr key={r.project + r.name}>
-                  <td><a className="link mono" {...linkProps(`/${org}/performance?name=${encodeURIComponent(r.name)}&project=${r.project}${period !== "24h" ? `&period=${period}` : ""}`)}>{r.name}</a> <span className="muted small">{r.op}</span></td>
+                  <td><a className="link mono" {...linkProps(`${base(org)}/performance?name=${encodeURIComponent(r.name)}&project=${r.project}${period !== "24h" ? `&period=${period}` : ""}`)}>{r.name}</a> <span className="muted small">{r.op}</span></td>
                   <td>{r.project}</td>
                   <td className="num-col">{formatCount(r.count)} <span className="muted small">({r.perMinute >= 1 ? `${r.perMinute.toFixed(1)}/min` : `${(r.perMinute * 60).toFixed(1)}/hr`})</span></td>
                   <td className="num-col">{ms(r.p50)}</td>
@@ -72,7 +72,7 @@ function TransactionList({ org, name, period, project, filters }: { org: string;
   const max = Math.max(1, ...(rows ?? []).map((r) => r.durationMs));
   return (
     <>
-      <a className="back muted" {...linkProps(`/${org}/performance`)}>← Performance</a>
+      <a className="back muted" {...linkProps(`${base(org)}/performance`)}>← Performance</a>
       <div className="page-head"><h1 className="mono">{name}</h1></div>
       {filters}
       <p className="muted small">Slowest first. Open one to see where the time went.</p>
@@ -85,7 +85,7 @@ function TransactionList({ org, name, period, project, filters }: { org: string;
                 <td style={{ width: "50%" }}><div className="dur-bar"><span style={{ width: `${(r.durationMs / max) * 100}%` }} className={r.status !== "ok" ? "bad" : ""} /></div></td>
                 <td className="num-col">{ms(r.durationMs)}</td>
                 <td>{r.status !== "ok" && <span className="badge warn">{r.status}</span>}</td>
-                <td><a className="link" {...linkProps(`/${org}/traces/${r.traceId}`)}>View trace</a></td>
+                <td><a className="link" {...linkProps(`${base(org)}/traces/${r.traceId}`)}>View trace</a></td>
               </tr>
             ))}
           </tbody>
@@ -121,7 +121,7 @@ export function TracePage({ org, traceId }: { org: string; traceId: string }) {
             {t.errors.map((e) => (
               <li key={e.eventId} className="row-item">
                 <span className={`level level-${e.level}`} />
-                <a className="link" {...linkProps(`/${org}/issues/${e.issueId}`)}>{e.title}</a>
+                <a className="link" {...linkProps(`${base(org)}/issues/${e.issueId}`)}>{e.title}</a>
                 <span className="muted small">{offset(new Date(e.timestamp).getTime() - t0)}</span>
               </li>
             ))}

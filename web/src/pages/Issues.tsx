@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, Issue, Project } from "../api";
-import { linkProps, setQuery } from "../router";
+import { linkProps, setQuery, base } from "../router";
 import { Bars, Empty, formatCount, Level, TimeAgo } from "../ui";
 
 const STATUSES = [
@@ -93,7 +93,7 @@ export function IssuesPage({ org, search }: { org: string; search: string }) {
               <span className="col-num">Events</span>
             </div>
             {data.issues.map((is) => (
-              <a key={is.id} className="issue-row" {...linkProps(`/${org}/issues/${is.id}`)}>
+              <a key={is.id} className="issue-row" {...linkProps(`${base(org)}/issues/${is.id}`)}>
                 <div className="issue-main">
                   <div className="issue-title">
                     <Level level={is.level} />

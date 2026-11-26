@@ -184,10 +184,10 @@ func serve(ctx context.Context, cfg *config.Config, d *db.DB, log *slog.Logger, 
 		worker := queue.NewWorker(d.Pool, log)
 		worker.Handle(logs.JobKind, logs.Store(d))
 		alerts := &alert.Engine{
-			DB:        d,
-			Log:       log,
-			Sender:    &notify.Sender{HTTP: notify.NewHTTPClient(cfg.AllowPrivateWebhooks), SMTP: cfg.SMTP},
-			PublicURL: cfg.PublicURL,
+			DB:     d,
+			Log:    log,
+			Sender: &notify.Sender{HTTP: notify.NewHTTPClient(cfg.AllowPrivateWebhooks), SMTP: cfg.SMTP},
+			OrgURL: cfg.OrgURL,
 		}
 		worker.Handle(process.JobKind, (&process.Processor{
 			DB: d, OnOutcome: alerts.OnOutcome, Keyring: keyring, SourceMaps: &sourcemap.Resolver{DB: d},

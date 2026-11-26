@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api, AuthConfig } from "../api";
-import { navigate } from "../router";
+import { goToOrg, navigate, tenantDomainName } from "../router";
 
 type Props = { onDone: () => void; Brand: () => React.ReactElement };
 
@@ -101,7 +101,7 @@ export function SignupPage({ onDone, Brand }: Props) {
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
   const form = useForm(async () => {
     const r = await api.signup(f);
-    navigate(`/${r.organization.slug}/projects`);
+    goToOrg(r.organization.slug, "projects");
     onDone();
   });
   return (
@@ -114,6 +114,9 @@ export function SignupPage({ onDone, Brand }: Props) {
         <label>Work email<input type="email" required value={f.email} onChange={set("email")} autoComplete="email" /></label>
         <label>Password<input type="password" required minLength={10} value={f.password} onChange={set("password")} autoComplete="new-password" /></label>
         <label>Organization name<input required value={f.organizationName} onChange={set("organizationName")} /></label>
+        {tenantDomainName() && f.organizationName && (
+          <p className="muted small">Your dashboard: <b>{previewSlug(f.organizationName)}.{tenantDomainName()}</b></p>
+        )}
         {form.error && <p className="error">{form.error}</p>}
         <button disabled={form.busy}>{form.busy ? "Creating…" : "Create account"}</button>
         <button type="button" className="ghost" onClick={() => navigate("/")}>I already have an account</button>
@@ -161,4 +164,10 @@ export function ResetPasswordPage({ token, Brand }: { token: string; Brand: () =
       </form>
     </div>
   );
+}
+
+/** Mirrors the server's slug rules closely enough for a preview. */
+function previewSlug(name: string) {
+  const s = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50).replace(/-+$/, "");
+  return s || "org";
 }

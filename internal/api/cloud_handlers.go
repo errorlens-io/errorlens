@@ -85,7 +85,7 @@ func (s *Server) billingCheckout(w http.ResponseWriter, r *http.Request) {
 	org := orgFrom(r.Context())
 	var customer string
 	_ = s.db.Pool.QueryRow(r.Context(), `SELECT billing_customer_id FROM organizations WHERE id = $1`, org.ID).Scan(&customer)
-	base := s.cfg.PublicURL.String() + "/" + org.Slug + "/settings/billing"
+	base := s.cfg.OrgURL(org.Slug, "settings/billing")
 	u, err := s.billing.CheckoutURL(r.Context(), org.ID.String(), customer, userFrom(r.Context()).Email, plan, base+"?checkout=success", base)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
@@ -106,7 +106,7 @@ func (s *Server) billingPortal(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "no subscription yet")
 		return
 	}
-	u, err := s.billing.PortalURL(r.Context(), customer, s.cfg.PublicURL.String()+"/"+org.Slug+"/settings/billing")
+	u, err := s.billing.PortalURL(r.Context(), customer, s.cfg.OrgURL(org.Slug, "settings/billing"))
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return

@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AlertChannel, AlertHistory, AlertRule, api, Project } from "../api";
-import { linkProps } from "../router";
+import { linkProps, base } from "../router";
 import { Empty, TimeAgo } from "../ui";
 
 const TRIGGERS: Record<AlertRule["trigger"], string> = {
@@ -86,7 +86,7 @@ export function AlertsPage({ org }: { org: string }) {
               {history.map((h) => (
                 <tr key={h.id}>
                   <td className="nowrap"><TimeAgo iso={h.createdAt} /></td>
-                  <td>{h.issueId ? <a className="link" {...linkProps(`/${org}/issues/${h.issueId}`)}>{h.issueTitle}</a> : "—"}</td>
+                  <td>{h.issueId ? <a className="link" {...linkProps(`${base(org)}/issues/${h.issueId}`)}>{h.issueTitle}</a> : "—"}</td>
                   <td>{h.rule} → {h.channel ?? "deleted"}</td>
                   <td><span className={`badge ${h.status === "sent" ? "ok" : h.status === "failed" ? "warn" : ""}`} title={h.error}>{h.status}</span></td>
                 </tr>

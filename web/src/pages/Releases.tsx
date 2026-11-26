@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { api, Release } from "../api";
-import { linkProps } from "../router";
+import { linkProps, base } from "../router";
 import { Empty, TimeAgo } from "../ui";
 
-export function ReleasesPage({ org }: { org: string }) {
+export function ReleasesPage({ org, project }: { org: string; project?: string }) {
   const [releases, setReleases] = useState<Release[] | null>(null);
   const [error, setError] = useState("");
-  useEffect(() => { api.releases(org).then(setReleases).catch((e) => setError(e.message)); }, [org]);
+  useEffect(() => { api.releases(org, project || undefined).then(setReleases).catch((e) => setError(e.message)); }, [org, project]);
   return (
     <>
       <div className="page-head"><h1>Releases</h1></div>
@@ -21,7 +21,7 @@ export function ReleasesPage({ org }: { org: string }) {
                 <tr key={r.project + r.version}>
                   <td className="mono"><strong>{r.version}</strong></td>
                   <td>{r.project}</td>
-                  <td>{r.newIssues > 0 ? <a className="link" {...linkProps(`/${org}/issues?project=${r.project}&status=all&query=`)}>{r.newIssues}</a> : 0}</td>
+                  <td>{r.newIssues > 0 ? <a className="link" {...linkProps(`${base(org)}/issues?project=${r.project}&status=all&query=`)}>{r.newIssues}</a> : 0}</td>
                   <td>{r.files}</td>
                   <td>{r.lastEvent ? <TimeAgo iso={r.lastEvent} /> : "—"}</td>
                 </tr>

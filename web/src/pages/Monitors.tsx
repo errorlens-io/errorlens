@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AlertChannel, api, CheckIn, Monitor, Project } from "../api";
-import { linkProps, navigate } from "../router";
+import { linkProps, navigate, base } from "../router";
 import { Empty, TimeAgo } from "../ui";
 import { ms } from "./Performance";
 
@@ -10,10 +10,12 @@ function Dots({ recent }: { recent: string[] }) {
   return <span className="dots">{[...recent].reverse().map((s, i) => <span key={i} className={`dot st-${s}`} title={s} />)}</span>;
 }
 
-export function MonitorsPage({ org, role }: { org: string; role: string }) {
+export function MonitorsPage({ org, role, project }: { org: string; role: string; project?: string }) {
   const [items, setItems] = useState<Monitor[] | null>(null);
   const [adding, setAdding] = useState(false);
-  const load = useCallback(() => { api.monitors(org).then(setItems).catch(() => setItems([])); }, [org]);
+  const load = useCallback(() => {
+    api.monitors(org).then((ms) => setItems(project ? ms.filter((m) => m.project === project) : ms)).catch(() => setItems([]));
+  }, [org, project]);
   useEffect(load, [load]);
   const isAdmin = role === "owner" || role === "admin";
   return (
@@ -28,7 +30,7 @@ export function MonitorsPage({ org, role }: { org: string; role: string }) {
               {items.map((m) => (
                 <tr key={m.id}>
                   <td><span className={`pill st-${m.status}`}>{statusLabel[m.status] ?? m.status}</span></td>
-                  <td><a className="link" {...linkProps(`/${org}/monitors/${m.id}`)}><strong>{m.name}</strong></a><div className="muted small mono">{m.kind === "uptime" ? m.url : m.schedule}</div></td>
+                  <td><a className="link" {...linkProps(`${base(org)}/monitors/${m.id}`)}><strong>{m.name}</strong></a><div className="muted small mono">{m.kind === "uptime" ? m.url : m.schedule}</div></td>
                   <td className="hide-sm">{m.project}</td>
                   <td><Dots recent={m.recent} /></td>
                   <td className="nowrap muted small">{m.lastCheckIn ? <TimeAgo iso={m.lastCheckIn} /> : "never"}</td>
@@ -119,11 +121,11 @@ export function MonitorDetailPage({ org, id, role }: { org: string; id: string; 
   }
   return (
     <>
-      <a className="back muted" {...linkProps(`/${org}/monitors`)}>← Monitors</a>
+      <a className="back muted" {...linkProps(`${base(org)}/monitors`)}>← Monitors</a>
       <div className="page-head">
         <h1>{m.name} <span className={`pill st-${m.status}`}>{statusLabel[m.status] ?? m.status}</span></h1>
         {(role === "owner" || role === "admin") && (
-          <button className="ghost danger" onClick={async () => { if (confirm("Delete this monitor?")) { await api.deleteMonitor(org, id); navigate(`/${org}/monitors`); } }}>Delete</button>
+          <button className="ghost danger" onClick={async () => { if (confirm("Delete this monitor?")) { await api.deleteMonitor(org, id); navigate(`${base(org)}/monitors`); } }}>Delete</button>
         )}
       </div>
       <p className="muted mono">{m.kind === "uptime" ? `${m.url} · every ${m.intervalSeconds}s` : `${m.schedule} (${m.timezone}) · next ${m.nextExpected ? new Date(m.nextExpected).toLocaleString() : "—"}`}</p>

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,10 +30,11 @@ var levelRank = map[string]int{"debug": 0, "info": 1, "warning": 2, "error": 3, 
 
 // Engine evaluates rules and delivers notifications.
 type Engine struct {
-	DB        *db.DB
-	Log       *slog.Logger
-	Sender    *notify.Sender
-	PublicURL *url.URL
+	DB     *db.DB
+	Log    *slog.Logger
+	Sender *notify.Sender
+	// OrgURL builds dashboard links (see config.Config.OrgURL).
+	OrgURL func(org, path string) string
 }
 
 type evaluatePayload struct {
@@ -211,9 +211,7 @@ func (e *Engine) Evaluate(ctx context.Context, j queue.Job) error {
 }
 
 func (e *Engine) issueURL(org string, id int64) string {
-	u := *e.PublicURL
-	u.Path = fmt.Sprintf("%s/%s/issues/%d", u.Path, org, id)
-	return u.String()
+	return e.OrgURL(org, fmt.Sprintf("issues/%d", id))
 }
 
 // Deliver is the queue handler for DeliverJob. Errors are retried by the queue.

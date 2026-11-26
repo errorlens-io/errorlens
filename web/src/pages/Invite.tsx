@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../api";
-import { navigate } from "../router";
+import { goToOrg } from "../router";
 
 export function InvitePage({ token, onDone, Brand }: { token: string; onDone: () => void; Brand: () => React.ReactElement }) {
   const [info, setInfo] = useState<{ organization: string; email: string; role: string; accountExists: boolean } | null>(null);
@@ -16,7 +16,7 @@ export function InvitePage({ token, onDone, Brand }: { token: string; onDone: ()
     setError(""); setBusy(true);
     try {
       const r = await api.acceptInvite(token, name, password);
-      navigate(`/${r.organization}/issues`);
+      goToOrg(r.organization, "issues");
       onDone();
     } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
   };

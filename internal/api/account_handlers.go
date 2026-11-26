@@ -127,7 +127,7 @@ func (s *Server) signup(w http.ResponseWriter, r *http.Request) {
 // the hosted free-plan quota when sign-up is enabled.
 func (s *Server) createOrganization(ctx context.Context, userID uuid.UUID, name, ip string) (*Organization, error) {
 	orgID := uuid.New()
-	base := slugify(name)
+	base := orgSlug(name)
 	var slug string
 	err := s.db.System(ctx, func(tx pgx.Tx) error {
 		slug = base

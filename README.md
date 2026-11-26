@@ -90,6 +90,7 @@ errorlens sourcemaps upload --url https://errors.example.com --token "$ERRORLENS
 | `ERRORLENS_ALLOW_PRIVATE_WEBHOOKS` | `false` | Allow alert webhooks and uptime checks to reach private addresses |
 | `ERRORLENS_OIDC_ISSUER` / `_CLIENT_ID` / `_CLIENT_SECRET` / `_NAME` | | Single sign-on with any OpenID Connect provider |
 | `ERRORLENS_OIDC_AUTO_JOIN_ORG` / `_DEFAULT_ROLE` / `_ALLOWED_DOMAINS` | | Let SSO users from allowed domains join an organization automatically |
+| `ERRORLENS_TENANT_DOMAIN` | | Hosted mode: serve each organization at `<org>.<domain>` (e.g. `errorlens.io`); needs wildcard DNS and TLS. `ERRORLENS_PUBLIC_URL` must be on this domain |
 | `ERRORLENS_SIGNUP_ENABLED` | `false` | Hosted mode: anyone can create an account and organization |
 | `ERRORLENS_FREE_EVENT_QUOTA` | `5000` | Monthly events for organizations created by sign-up |
 | `ERRORLENS_STRIPE_SECRET_KEY` / `_WEBHOOK_SECRET` / `_PLANS` | | Hosted billing; plans as `id:price_id:monthly_events,...`; webhook at `/webhooks/stripe` |

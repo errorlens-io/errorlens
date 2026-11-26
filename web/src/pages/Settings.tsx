@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api, AuditEntry, Invitation, Member, Organization, Project, ProjectSettings } from "../api";
-import { linkProps, navigate } from "../router";
+import { linkProps, navigate, base } from "../router";
 import { TimeAgo } from "../ui";
 import { TokensSection } from "./Tokens";
 import { BillingSection } from "./Billing";
@@ -15,7 +15,7 @@ export function SettingsPage({ org, tab, project }: { org: Organization; tab: st
       <div className="page-head"><h1>Settings</h1></div>
       <div className="segmented" role="tablist">
         {tabs.map(([t, label]) => (
-          <a key={t} role="tab" aria-selected={tab === t} className={`seg ${tab === t ? "on" : ""}`} {...linkProps(`/${org.slug}/settings/${t}`)}>{label}</a>
+          <a key={t} role="tab" aria-selected={tab === t} className={`seg ${tab === t ? "on" : ""}`} {...linkProps(`${base(org.slug)}/settings/${t}`)}>{label}</a>
         ))}
       </div>
       {tab === "projects" ? (project ? <ProjectSettingsForm org={org.slug} slug={project} /> : <ProjectPicker org={org.slug} />) :
@@ -34,7 +34,7 @@ function ProjectPicker({ org }: { org: string }) {
       <ul className="rows">
         {projects.map((p) => (
           <li key={p.id} className="row-item">
-            <a className="link" {...linkProps(`/${org}/settings/projects/${p.slug}`)}><strong>{p.name}</strong></a>
+            <a className="link" {...linkProps(`${base(org)}/settings/projects/${p.slug}`)}><strong>{p.name}</strong></a>
             <span className="badge">{p.platform}</span>
           </li>
         ))}
@@ -76,7 +76,7 @@ function ProjectSettingsForm({ org, slug }: { org: string; slug: string }) {
 
   return (
     <>
-      <a className="back muted" {...linkProps(`/${org}/settings/projects`)}>← All projects</a>
+      <a className="back muted" {...linkProps(`${base(org)}/settings/projects`)}>← All projects</a>
       <form className="card form-grid" onSubmit={save}>
         <h2>General</h2>
         <label>Name<input value={ps.name} onChange={(e) => setPs({ ...ps, name: e.target.value })} required /></label>
@@ -138,7 +138,7 @@ function ProjectSettingsForm({ org, slug }: { org: string; slug: string }) {
         <button className="danger-btn" onClick={async () => {
           if (!confirm(`Delete ${ps.name} and all its data? This cannot be undone.`)) return;
           await api.deleteProject(org, slug);
-          navigate(`/${org}/settings/projects`);
+          navigate(`${base(org)}/settings/projects`);
         }}>Delete project</button>
       </section>
     </>

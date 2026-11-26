@@ -145,7 +145,7 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID, orgID := uuid.New(), uuid.New()
-	slug := slugify(req.OrganizationName)
+	slug := orgSlug(req.OrganizationName)
 	ctx := r.Context()
 	err = s.db.System(ctx, func(tx pgx.Tx) error {
 		// Serialize concurrent setup attempts.
@@ -289,6 +289,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, userID uui
 		Name:     sessionCookie,
 		Value:    token,
 		Path:     "/",
+		Domain:   s.cfg.TenantDomain, // shared by <org>.<domain> dashboards; "" = host-only
 		Expires:  expires,
 		HttpOnly: true,
 		Secure:   s.cfg.SecureCookies(),
@@ -325,6 +326,12 @@ func (s *Server) clearCookie(w http.ResponseWriter) {
 		Name: sessionCookie, Value: "", Path: "/", MaxAge: -1,
 		HttpOnly: true, Secure: s.cfg.SecureCookies(), SameSite: http.SameSiteLaxMode,
 	})
+	if s.cfg.TenantDomain != "" {
+		http.SetCookie(w, &http.Cookie{
+			Name: sessionCookie, Value: "", Path: "/", Domain: s.cfg.TenantDomain, MaxAge: -1,
+			HttpOnly: true, Secure: s.cfg.SecureCookies(), SameSite: http.SameSiteLaxMode,
+		})
+	}
 }
 
 func (s *Server) me(w http.ResponseWriter, r *http.Request) {

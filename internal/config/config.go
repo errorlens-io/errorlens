@@ -38,6 +38,11 @@ type Config struct {
 	// EncryptionKey (base64, 32 bytes) enables encryption of stored event
 	// payloads. Losing it makes encrypted events unreadable.
 	EncryptionKey string
+
+	// TenantDomain (hosted mode), e.g. "errorlens.io": each organization's
+	// dashboard lives at <org-slug>.<TenantDomain>, while sign-in, sign-up and
+	// ingestion stay on PublicURL. Empty keeps /<org>/ paths on PublicURL.
+	TenantDomain string
 }
 
 // SMTP configures outgoing email (alerts, invitations). Host "" disables email.
@@ -47,6 +52,54 @@ type SMTP struct {
 	Username string
 	Password string
 	From     string
+}
+
+// OrgURL is the absolute dashboard URL of path (no leading slash) inside an
+// organization: https://<org>.<TenantDomain>/path in tenant mode, otherwise
+// <PublicURL>/<org>/path.
+func (c *Config) OrgURL(org, path string) string {
+	path = strings.TrimLeft(path, "/")
+	if c.TenantDomain != "" {
+		host := org + "." + c.TenantDomain
+		if port := c.PublicURL.Port(); port != "" {
+			host += ":" + port
+		}
+		return c.PublicURL.Scheme + "://" + host + "/" + path
+	}
+	return c.PublicURL.String() + "/" + org + "/" + path
+}
+
+// IsTenantOrigin reports whether origin (scheme://host) is an organization
+// subdomain of TenantDomain, e.g. https://acme.errorlens.io.
+func (c *Config) IsTenantOrigin(origin string) bool {
+	if c.TenantDomain == "" {
+		return false
+	}
+	prefix := c.PublicURL.Scheme + "://"
+	if !strings.HasPrefix(origin, prefix) {
+		return false
+	}
+	host := strings.TrimPrefix(origin, prefix)
+	if port := c.PublicURL.Port(); port != "" {
+		var ok bool
+		if host, ok = strings.CutSuffix(host, ":"+port); !ok {
+			return false
+		}
+	}
+	label, ok := strings.CutSuffix(host, "."+c.TenantDomain)
+	return ok && validLabel(label)
+}
+
+func validLabel(s string) bool {
+	if s == "" || len(s) > 63 || s[0] == '-' || s[len(s)-1] == '-' {
+		return false
+	}
+	for _, r := range s {
+		if !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-') {
+			return false
+		}
+	}
+	return true
 }
 
 // SecureCookies reports whether cookies must carry the Secure flag.
@@ -108,6 +161,17 @@ func Load(getenv func(string) string) (*Config, error) {
 	}
 
 	cfg.AllowPrivateWebhooks = isTrue(get("ERRORLENS_ALLOW_PRIVATE_WEBHOOKS", "false"))
+	if d := strings.ToLower(strings.Trim(get("ERRORLENS_TENANT_DOMAIN", ""), ".")); d != "" {
+		for _, l := range strings.Split(d, ".") {
+			if !validLabel(l) {
+				return nil, fmt.Errorf("ERRORLENS_TENANT_DOMAIN must be a domain name like errorlens.io")
+			}
+		}
+		if h := pub.Hostname(); h != d && !strings.HasSuffix(h, "."+d) {
+			return nil, fmt.Errorf("ERRORLENS_PUBLIC_URL must be on ERRORLENS_TENANT_DOMAIN")
+		}
+		cfg.TenantDomain = d
+	}
 	cfg.SignupEnabled = isTrue(get("ERRORLENS_SIGNUP_ENABLED", "false"))
 	cfg.EncryptionKey = get("ERRORLENS_ENCRYPTION_KEY", "")
 	q, err := strconv.ParseInt(get("ERRORLENS_FREE_EVENT_QUOTA", "5000"), 10, 64)

@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api, Organization, Project } from "../api";
 import { Empty } from "../ui";
+import { base, linkProps } from "../router";
 import { SetupGuide } from "./Setup";
 
 const PLATFORMS = ["javascript", "node", "python", "go", "java", "php", "ruby", "dotnet", "rust", "react-native", "flutter", "android", "apple", "other"];
@@ -57,14 +58,14 @@ export function ProjectsPage({ org }: { org: Organization }) {
         <Empty title="No projects yet">Create one to get a DSN.</Empty>
       ) : (
         <ul className="projects">
-          {projects.map((p) => <ProjectCard key={p.id} project={p} />)}
+          {projects.map((p) => <ProjectCard key={p.id} org={org.slug} project={p} />)}
         </ul>
       )}
     </>
   );
 }
 
-function ProjectCard({ project }: { project: Project }) {
+function ProjectCard({ org, project }: { org: string; project: Project }) {
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState(false);
   const copy = async () => {
@@ -75,7 +76,7 @@ function ProjectCard({ project }: { project: Project }) {
   return (
     <li className="card">
       <div className="project-head">
-        <strong>{project.name}</strong>
+        <a className="link" {...linkProps(`${base(org)}/${project.slug}/issues`)}><strong>{project.name}</strong></a>
         <span className="tag">{project.platform}</span>
       </div>
       <div className="dsn">

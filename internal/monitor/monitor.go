@@ -10,7 +10,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -99,10 +98,11 @@ var slugRe = strings.NewReplacer(" ", "-", "_", "-")
 
 // Service processes check-ins and runs schedules.
 type Service struct {
-	DB        *db.DB
-	Log       *slog.Logger
-	HTTP      *http.Client
-	PublicURL *url.URL
+	DB   *db.DB
+	Log  *slog.Logger
+	HTTP *http.Client
+	// OrgURL builds dashboard links (see config.Config.OrgURL).
+	OrgURL func(org, path string) string
 }
 
 // RecordCheckIn applies a check-in to the monitor identified by slug,
@@ -462,12 +462,11 @@ func (s *Service) Notify(sender *notify.Sender) queue.Handler {
 			return nil
 		}
 		reason := map[string]string{"error": "Monitor failing", "missed": "Missed check-in", "timeout": "Monitor timed out", "ok": "Monitor recovered"}[p.T.To]
-		u := *s.PublicURL
-		u.Path = fmt.Sprintf("%s/%s/monitors/%s", u.Path, orgSlug, p.T.MonitorID)
+		link := s.OrgURL(orgSlug, "monitors/"+p.T.MonitorID.String())
 		msg := notify.Message{
 			Subject: fmt.Sprintf("[%s] %s: %s", project, reason, p.T.Name), Reason: reason, Title: p.T.Name,
 			Culprit: p.T.Detail, Project: project, Level: map[bool]string{true: "info", false: "error"}[p.T.To == "ok"],
-			URL: u.String(), FiredAt: time.Now().UTC(), RuleName: "monitor", Org: orgSlug,
+			URL: link, FiredAt: time.Now().UTC(), RuleName: "monitor", Org: orgSlug,
 		}
 		var lastErr error
 		for _, ch := range channels {

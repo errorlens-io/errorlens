@@ -321,3 +321,6 @@ a.seg.on { background: var(--accent); color: var(--accent-text); }
   .topbar button { white-space: nowrap; }
 }
 .kv td.num-col, .kv th.num-col, .kv td.nowrap { white-space: nowrap; }
+
+.project-scope { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; }
+.project-scope a { cursor: pointer; text-decoration: none; font-weight: 600; }

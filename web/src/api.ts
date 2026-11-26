@@ -68,7 +68,7 @@ export type LogLine = { id: number; timestamp: string; project: string; severity
 export type Release = { version: string; project: string; firstEvent: string | null; lastEvent: string | null; createdAt: string; newIssues: number; files: number };
 export type APIToken = { id: string; name: string; prefix: string; role: string; createdAt: string; lastUsedAt: string | null };
 
-export type AuthConfig = { signupEnabled: boolean; emailEnabled: boolean; sso: { name: string } | null };
+export type AuthConfig = { tenantDomain?: string; publicUrl?: string; signupEnabled: boolean; emailEnabled: boolean; sso: { name: string } | null };
 export type BillingInfo = {
   plan: string; quota: number | null; used: number; dropped: number; status: string; hasCustomer: boolean;
   billingEnabled: boolean; plans?: { id: string; label: string; quota: number }[];

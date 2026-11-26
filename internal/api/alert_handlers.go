@@ -222,7 +222,7 @@ func (s *Server) testChannel(w http.ResponseWriter, r *http.Request) {
 	msg := notify.Message{
 		Subject: "[ErrorLens] Test notification", Reason: "Test notification", Title: "This is a test alert from ErrorLens",
 		Culprit: "settings/alerts", Project: "example", Level: "info", Count: 1, FiredAt: time.Now().UTC(),
-		RuleName: "test", IsTest: true, Org: org.Slug, URL: s.cfg.PublicURL.String() + "/" + org.Slug + "/alerts",
+		RuleName: "test", IsTest: true, Org: org.Slug, URL: s.cfg.OrgURL(org.Slug, "alerts"),
 	}
 	if err := s.sender.Send(r.Context(), ch, msg); err != nil {
 		writeError(w, http.StatusBadGateway, "delivery failed: "+err.Error())

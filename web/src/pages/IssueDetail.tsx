@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, EventDetail, Issue, IssueStatus, Payload, TagSummary } from "../api";
-import { linkProps } from "../router";
+import { linkProps, base } from "../router";
 import { Bars, formatCount, Level, TimeAgo } from "../ui";
 
 export function IssueDetailPage({ org, id, role }: { org: string; id: number; role: string }) {
@@ -36,7 +36,7 @@ export function IssueDetailPage({ org, id, role }: { org: string; id: number; ro
 
   return (
     <>
-      <a className="back muted" {...linkProps(`/${org}/issues`)}>← Issues</a>
+      <a className="back muted" {...linkProps(`${base(org)}/issues`)}>← Issues</a>
       <div className="issue-header">
         <div className="issue-header-main">
           <h1 className="issue-h1"><Level level={issue.level} /> {issue.title}</h1>
@@ -78,7 +78,7 @@ export function IssueDetailPage({ org, id, role }: { org: string; id: number; ro
                 <div>
                   <strong>Event</strong> <span className="mono muted">{event.id.slice(0, 12)}</span>
                   <span className="muted"> · <TimeAgo iso={event.timestamp} /></span>
-                  {event.tags.trace_id && <> · <a className="link" {...linkProps(`/${org}/traces/${event.tags.trace_id}`)}>View trace</a></>}
+                  {event.tags.trace_id && <> · <a className="link" {...linkProps(`${base(org)}/traces/${event.tags.trace_id}`)}>View trace</a></>}
                   {event.scrubbed > 0 && (
                     <span className="badge ok" title="Values removed before storage">🔒 {event.scrubbed} values filtered</span>
                   )}

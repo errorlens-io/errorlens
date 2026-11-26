@@ -105,7 +105,8 @@ func (s *Server) oauthConfig(p *oidc.Provider) *oauth2.Config {
 
 // authConfig tells the login page which options to show.
 func (s *Server) authConfig(w http.ResponseWriter, _ *http.Request) {
-	resp := map[string]any{"signupEnabled": s.cfg.SignupEnabled, "emailEnabled": s.cfg.SMTP.Host != "", "sso": nil}
+	resp := map[string]any{"signupEnabled": s.cfg.SignupEnabled, "emailEnabled": s.cfg.SMTP.Host != "", "sso": nil,
+		"tenantDomain": s.cfg.TenantDomain, "publicUrl": s.cfg.PublicURL.String()}
 	if s.oidc != nil {
 		resp["sso"] = map[string]string{"name": s.oidc.cfg.Name}
 	}

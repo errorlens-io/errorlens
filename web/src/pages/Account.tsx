@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api, User } from "../api";
-import { navigate } from "../router";
+import { goToOrg } from "../router";
 
 export function AccountPage({ user, canCreateOrg, onChanged }: { user: User; canCreateOrg: boolean; onChanged: () => void }) {
   return (
@@ -99,7 +99,7 @@ function NewOrgSection({ onChanged }: { onChanged: () => void }) {
     try {
       const org = await api.createOrganization(name);
       onChanged();
-      navigate(`/${org.slug}/projects`);
+      goToOrg(org.slug, "projects");
     } catch (err) { setError((err as Error).message); }
   };
   return (

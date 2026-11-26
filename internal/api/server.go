@@ -230,7 +230,8 @@ func limitBody(n, upload int64) func(http.Handler) http.Handler {
 
 // sameOrigin is the CSRF defence for cookie-authenticated API calls:
 // state-changing requests must be JSON and, if the browser sends an Origin,
-// it must match the configured public URL.
+// it must match the configured public URL (or, in tenant mode, an
+// organization subdomain of it).
 func (s *Server) sameOrigin(next http.Handler) http.Handler {
 	want := s.cfg.PublicURL.Scheme + "://" + s.cfg.PublicURL.Host
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -241,7 +242,7 @@ func (s *Server) sameOrigin(next http.Handler) http.Handler {
 		switch r.Method {
 		case http.MethodGet, http.MethodHead, http.MethodOptions:
 		default:
-			if origin := r.Header.Get("Origin"); origin != "" && origin != want {
+			if origin := r.Header.Get("Origin"); origin != "" && origin != want && !s.cfg.IsTenantOrigin(origin) {
 				writeError(w, http.StatusForbidden, "cross-origin request rejected")
 				return
 			}

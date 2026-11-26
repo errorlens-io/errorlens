@@ -14,7 +14,7 @@ import (
 )
 
 func monitorService(d *db.DB, log *slog.Logger, cfg *config.Config) *monitor.Service {
-	return &monitor.Service{DB: d, Log: log, HTTP: notify.NewHTTPClient(cfg.AllowPrivateWebhooks), PublicURL: cfg.PublicURL}
+	return &monitor.Service{DB: d, Log: log, HTTP: notify.NewHTTPClient(cfg.AllowPrivateWebhooks), OrgURL: cfg.OrgURL}
 }
 
 // registerExtraJobs wires performance and monitor background jobs.
