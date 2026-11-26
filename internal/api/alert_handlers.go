@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/mail"
+	"strconv"
 	"strings"
 	"time"
 
@@ -401,8 +402,10 @@ type alertHistoryEntry struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+// listAlertHistory pages newest first: ?before=<id of the last entry seen>.
 func (s *Server) listAlertHistory(w http.ResponseWriter, r *http.Request) {
 	out := []alertHistoryEntry{}
+	before := beforeID(r)
 	err := s.db.InScope(r.Context(), scope(r), func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
 			SELECT h.id, ar.name, h.issue_id, i.title, c.name, h.status, h.error, h.created_at
@@ -410,7 +413,8 @@ func (s *Server) listAlertHistory(w http.ResponseWriter, r *http.Request) {
 			LEFT JOIN alert_rules ar ON ar.id = h.rule_id
 			LEFT JOIN issues i ON i.id = h.issue_id
 			LEFT JOIN alert_channels c ON c.id = h.channel_id
-			ORDER BY h.created_at DESC LIMIT 100`)
+			WHERE $1 = 0 OR h.id < $1
+			ORDER BY h.id DESC LIMIT `+strconv.Itoa(pageSize), before)
 		if err != nil {
 			return err
 		}

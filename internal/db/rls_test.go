@@ -148,3 +148,89 @@ func TestAuditLogIsAppendOnly(t *testing.T) {
 		}
 	}
 }
+
+// The search functions (SECURITY DEFINER, migration 0009) and the rollup
+// tables must never let one tenant see another's data.
+func TestSearchAndRollupsAreTenantScoped(t *testing.T) {
+	d := testutil.NewDB(t)
+	ctx := context.Background()
+	orgA := createOrg(t, d, "org-a")
+	orgB := createOrg(t, d, "org-b")
+
+	seed := func(org uuid.UUID, secret string) {
+		t.Helper()
+		err := d.InScope(ctx, db.Scope{OrgID: org}, func(tx pgx.Tx) error {
+			var project uuid.UUID
+			if err := tx.QueryRow(ctx, `SELECT id FROM projects`).Scan(&project); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO issues (org_id, project_id, hash, title, culprit, first_seen, last_seen)
+				VALUES ($1, $2, 'h', $3, 'mod in fn', now(), now())`, org, project, "Error "+secret); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO logs (org_id, project_id, timestamp, severity, severity_number, body, attributes)
+				VALUES ($1, $2, now(), 'info', 9, $3, '{}')`, org, project, "line "+secret); err != nil {
+				return err
+			}
+			_, err := tx.Exec(ctx, `INSERT INTO perf_hourly (org_id, project_id, name, hour, count, failures, sum_ms)
+				VALUES ($1, $2, $3, date_trunc('hour', now()), 1, 0, 10)`, org, project, "GET /"+secret)
+			return err
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	seed(orgA, "alpha-secret")
+	seed(orgB, "bravo-secret")
+
+	query := func(s db.Scope, sql string, args ...any) int {
+		t.Helper()
+		var n int
+		if err := d.InScope(ctx, s, func(tx pgx.Tx) error { return tx.QueryRow(ctx, sql, args...).Scan(&n) }); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	a := db.Scope{OrgID: orgA}
+	if n := query(a, `SELECT count(*) FROM issue_search_ids('%secret%')`); n != 1 {
+		t.Fatalf("issue search from org A found %d issues, want 1 (its own)", n)
+	}
+	if n := query(a, `SELECT count(*) FROM issue_search_ids('%bravo%')`); n != 0 {
+		t.Fatalf("issue search from org A found org B's issue")
+	}
+	if n := query(a, `SELECT count(*) FROM log_search('%secret%', NULL, NULL, NULL, NULL, NULL, 100)`); n != 1 {
+		t.Fatalf("log search from org A found %d lines, want 1", n)
+	}
+	if n := query(a, `SELECT count(*) FROM log_search('%bravo%', NULL, NULL, NULL, NULL, NULL, 100)`); n != 0 {
+		t.Fatalf("log search from org A found org B's log line")
+	}
+	// Passing another tenant's project id doesn't help either.
+	var projectB uuid.UUID
+	if err := d.InScope(ctx, db.Scope{OrgID: orgB}, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT id FROM projects`).Scan(&projectB)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if n := query(a, `SELECT count(*) FROM log_search('%%', $1, NULL, NULL, NULL, NULL, 100)`, projectB); n != 0 {
+		t.Fatalf("log search with org B's project id returned rows to org A")
+	}
+	// No tenant set: the functions return nothing.
+	if n := query(db.Scope{}, `SELECT count(*) FROM log_search('%%', NULL, NULL, NULL, NULL, NULL, 100)`); n != 0 {
+		t.Fatalf("log search without a tenant returned %d rows", n)
+	}
+	if n := query(db.Scope{}, `SELECT count(*) FROM issue_search_ids('%%')`); n != 0 {
+		t.Fatalf("issue search without a tenant returned %d rows", n)
+	}
+	// Rollups are under RLS like everything else.
+	if n := query(a, `SELECT count(*) FROM perf_hourly`); n != 1 {
+		t.Fatalf("org A sees %d rollup rows, want 1", n)
+	}
+	err := d.InScope(ctx, a, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `INSERT INTO perf_hourly (org_id, project_id, name, hour, count, failures, sum_ms)
+			VALUES ($1, $2, 'x', now(), 1, 0, 1)`, orgB, projectB)
+		return err
+	})
+	if err == nil {
+		t.Fatal("org A wrote a rollup row into org B")
+	}
+}

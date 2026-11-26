@@ -300,25 +300,62 @@ func Enqueue(ctx context.Context, d *db.DB, org, project uuid.UUID, txs []Transa
 	return err
 }
 
-// Store is the queue handler.
+// Store is the queue handler. One statement inserts the batch and folds the
+// newly stored rows (not duplicates) into the hourly rollup and the daily
+// duration histogram that long-period summaries read.
 func Store(d *db.DB) queue.Handler {
 	return func(ctx context.Context, j queue.Job) error {
 		var job Job
 		if err := json.Unmarshal(j.Payload, &job); err != nil {
 			return err
 		}
+		n := len(job.Transactions)
+		if n == 0 {
+			return nil
+		}
+		var (
+			ids                                                   = make([]uuid.UUID, n)
+			traces, spanIDs, names, ops, statuses, releases, envs = make([]string, n), make([]string, n), make([]string, n), make([]string, n), make([]string, n), make([]string, n), make([]string, n)
+			tagsJSON, spansJSON                                   = make([]string, n), make([]string, n)
+			starts                                                = make([]time.Time, n)
+			durations                                             = make([]float64, n)
+		)
+		for i, t := range job.Transactions {
+			tags, _ := json.Marshal(t.Tags)
+			spans, _ := json.Marshal(t.Spans)
+			ids[i], traces[i], spanIDs[i], names[i], ops[i], statuses[i] = t.ID, t.TraceID, t.SpanID, t.Name, t.Op, t.Status
+			starts[i], durations[i], releases[i], envs[i] = t.Start, t.DurationMs, t.Release, t.Environment
+			tagsJSON[i], spansJSON[i] = string(tags), string(spans)
+		}
 		return d.InScope(ctx, db.Scope{OrgID: job.OrgID}, func(tx pgx.Tx) error {
-			b := &pgx.Batch{}
-			for _, t := range job.Transactions {
-				tags, _ := json.Marshal(t.Tags)
-				spans, _ := json.Marshal(t.Spans)
-				b.Queue(`INSERT INTO transactions (id, org_id, project_id, trace_id, span_id, name, op, status, start_ts,
-					duration_ms, release, environment, tags, spans) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-					ON CONFLICT DO NOTHING`,
-					t.ID, job.OrgID, job.ProjectID, t.TraceID, t.SpanID, t.Name, t.Op, t.Status, t.Start, t.DurationMs,
-					t.Release, t.Environment, tags, spans)
-			}
-			return tx.SendBatch(ctx, b).Close()
+			_, err := tx.Exec(ctx, `
+				WITH ins AS (
+					INSERT INTO transactions (id, org_id, project_id, trace_id, span_id, name, op, status, start_ts,
+						duration_ms, release, environment, tags, spans)
+					SELECT u.id, $1, $2, u.trace_id, u.span_id, u.name, u.op, u.status, u.start_ts,
+						u.duration_ms, u.release, u.environment, u.tags::jsonb, u.spans::jsonb
+					FROM unnest($3::uuid[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[], $9::timestamptz[],
+						$10::float8[], $11::text[], $12::text[], $13::text[], $14::text[])
+						AS u(id, trace_id, span_id, name, op, status, start_ts, duration_ms, release, environment, tags, spans)
+					ON CONFLICT DO NOTHING
+					RETURNING name, op, status, start_ts, duration_ms
+				), hourly AS (
+					INSERT INTO perf_hourly (org_id, project_id, name, hour, op, count, failures, sum_ms)
+					SELECT $1, $2, name, date_trunc('hour', start_ts), max(op), count(*),
+						count(*) FILTER (WHERE status NOT IN ('ok', 'cancelled', 'unknown')), sum(duration_ms)
+					FROM ins GROUP BY 3, 4 ORDER BY 3, 4
+					ON CONFLICT (project_id, name, hour) DO UPDATE SET
+						count = perf_hourly.count + EXCLUDED.count,
+						failures = perf_hourly.failures + EXCLUDED.failures,
+						sum_ms = perf_hourly.sum_ms + EXCLUDED.sum_ms,
+						op = EXCLUDED.op
+				)
+				INSERT INTO perf_daily_hist (org_id, project_id, name, day, bucket, count)
+				SELECT $1, $2, name, (start_ts AT TIME ZONE 'UTC')::date, perf_bucket(duration_ms), count(*)
+				FROM ins GROUP BY 3, 4, 5 ORDER BY 3, 4, 5
+				ON CONFLICT (project_id, name, day, bucket) DO UPDATE SET count = perf_daily_hist.count + EXCLUDED.count`,
+				job.OrgID, job.ProjectID, ids, traces, spanIDs, names, ops, statuses, starts, durations, releases, envs, tagsJSON, spansJSON)
+			return err
 		})
 	}
 }

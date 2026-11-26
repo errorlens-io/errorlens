@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -221,13 +222,16 @@ type auditEntry struct {
 	CreatedAt  time.Time `json:"createdAt"`
 }
 
+// listAuditLog pages newest first: ?before=<id of the last entry seen>.
 func (s *Server) listAuditLog(w http.ResponseWriter, r *http.Request) {
 	entries := []auditEntry{}
+	before := beforeID(r)
 	err := s.db.InScope(r.Context(), scope(r), func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
 			SELECT a.id, u.email, a.action, a.target, a.ip, a.created_at
 			FROM audit_log a LEFT JOIN users u ON u.id = a.actor_id
-			ORDER BY a.created_at DESC, a.id DESC LIMIT 200`)
+			WHERE $1 = 0 OR a.id < $1
+			ORDER BY a.id DESC LIMIT `+strconv.Itoa(pageSize), before)
 		if err != nil {
 			return err
 		}

@@ -87,3 +87,49 @@ func TestDelayedJobWaits(t *testing.T) {
 		t.Fatal("delayed job ran early")
 	}
 }
+
+// Run claims jobs in batches, and an idle worker is woken by the enqueue
+// notification instead of waiting for its poll interval.
+func TestBatchesAndWakeUp(t *testing.T) {
+	d := testutil.NewDB(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	w := queue.NewWorker(d.Pool, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	w.PollInterval = 30 * time.Second // only a notification can wake it in time
+	var done atomic.Int64
+	w.Handle("count", func(context.Context, queue.Job) error { done.Add(1); return nil })
+
+	for i := 0; i < 95; i++ {
+		if _, err := queue.Enqueue(ctx, d.Pool, "count", i, time.Time{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	go w.Run(ctx)
+	waitFor := func(n int64) {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		for done.Load() < n {
+			if time.Now().After(deadline) {
+				t.Fatalf("processed %d of %d jobs", done.Load(), n)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	waitFor(95)
+
+	// The workers are idle now; a new job must run long before the poll interval.
+	time.Sleep(300 * time.Millisecond)
+	start := time.Now()
+	if _, err := queue.Enqueue(ctx, d.Pool, "count", "late", time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(96)
+	if waited := time.Since(start); waited > 2*time.Second {
+		t.Fatalf("idle worker took %v to pick up a new job", waited)
+	}
+	var left int
+	_ = d.Pool.QueryRow(ctx, `SELECT count(*) FROM jobs`).Scan(&left)
+	if left != 0 {
+		t.Fatalf("%d jobs left in the table", left)
+	}
+}

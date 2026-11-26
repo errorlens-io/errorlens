@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +16,13 @@ import (
 	"github.com/errorlens-io/errorlens/internal/monitor"
 	"github.com/errorlens-io/errorlens/internal/notify"
 )
+
+// longPeriod reports whether the period is long enough to read the rollups
+// (7d, 30d) instead of raw transactions.
+func longPeriod(r *http.Request) bool {
+	p := r.URL.Query().Get("period")
+	return p == "7d" || p == "30d"
+}
 
 func periodStart(r *http.Request) time.Time {
 	switch r.URL.Query().Get("period") {
@@ -48,19 +56,55 @@ func (s *Server) listPerformance(w http.ResponseWriter, r *http.Request) {
 	if q.Get("sort") == "p95" {
 		order = "p95 DESC"
 	}
-	like := "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(q.Get("query")) + "%"
+	like := "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(searchText(q.Get("query"))) + "%"
 	out := []txSummary{}
-	err := s.db.InScope(r.Context(), scope(r), func(tx pgx.Tx) error {
-		rows, err := tx.Query(r.Context(), `
+	query := `
 			SELECT t.name, p.slug, max(t.op), count(*),
-			       percentile_cont(0.5) WITHIN GROUP (ORDER BY t.duration_ms),
-			       percentile_cont(0.95) WITHIN GROUP (ORDER BY t.duration_ms) AS p95,
+			       percentile_disc(0.5) WITHIN GROUP (ORDER BY t.duration_ms),
+			       percentile_disc(0.95) WITHIN GROUP (ORDER BY t.duration_ms) AS p95,
 			       avg(t.duration_ms),
 			       avg(CASE WHEN t.status NOT IN ('ok', 'cancelled', 'unknown') THEN 1.0 ELSE 0.0 END),
 			       count(*) / GREATEST(EXTRACT(EPOCH FROM now() - $1::timestamptz) / 60, 1)
 			FROM transactions t JOIN projects p ON p.id = t.project_id
 			WHERE t.start_ts >= $1 AND ($2 = '' OR p.slug = $2) AND t.name ILIKE $3
-			GROUP BY t.name, p.slug ORDER BY `+order+` LIMIT 200`, since, q.Get("project"), like)
+			GROUP BY t.name, p.slug ORDER BY ` + order + ` LIMIT 200`
+	if longPeriod(r) {
+		// Long periods read hourly rollups (exact counts, failures, averages)
+		// and daily duration histograms (percentiles within the 8% bucket
+		// width) instead of every raw transaction.
+		order = strings.Replace(order, "count(*)", "h.n", 1)
+		query = `
+			WITH h AS (
+				SELECT r.project_id, r.name, max(r.op) AS op, sum(r.count) AS n, sum(r.failures) AS f, sum(r.sum_ms) AS total_ms
+				FROM perf_hourly r JOIN projects p ON p.id = r.project_id
+				WHERE r.hour >= date_trunc('hour', $1::timestamptz) AND ($2 = '' OR p.slug = $2) AND r.name ILIKE $3
+				GROUP BY 1, 2
+			), hist AS (
+				SELECT d.project_id, d.name, d.bucket, sum(d.count) AS c
+				FROM perf_daily_hist d JOIN h USING (project_id, name)
+				WHERE d.day >= ($1::timestamptz AT TIME ZONE 'UTC')::date
+				GROUP BY 1, 2, 3
+			), cum AS (
+				SELECT project_id, name, bucket,
+				       sum(c) OVER (PARTITION BY project_id, name ORDER BY bucket) AS running,
+				       sum(c) OVER (PARTITION BY project_id, name) AS total
+				FROM hist
+			), pct AS (
+				SELECT project_id, name,
+				       perf_bucket_ms(min(bucket) FILTER (WHERE running >= 0.5 * total)) AS p50,
+				       perf_bucket_ms(min(bucket) FILTER (WHERE running >= 0.95 * total)) AS p95
+				FROM cum GROUP BY 1, 2
+			)
+			SELECT h.name, p.slug, h.op, h.n::bigint, COALESCE(pct.p50, 0), COALESCE(pct.p95, 0) AS p95,
+			       h.total_ms / h.n, h.f::float8 / h.n,
+			       h.n / GREATEST(EXTRACT(EPOCH FROM now() - $1::timestamptz) / 60, 1)
+			FROM h JOIN projects p ON p.id = h.project_id
+			LEFT JOIN pct ON pct.project_id = h.project_id AND pct.name = h.name
+			WHERE h.n > 0
+			ORDER BY ` + order + ` LIMIT 200`
+	}
+	err := s.db.InScope(r.Context(), scope(r), func(tx pgx.Tx) error {
+		rows, err := tx.Query(r.Context(), query, since, q.Get("project"), like)
 		if err != nil {
 			return err
 		}
@@ -98,13 +142,17 @@ func (s *Server) listTransactions(w http.ResponseWriter, r *http.Request) {
 	if q.Get("sort") == "recent" {
 		order = "t.start_ts DESC"
 	}
+	offset, _ := strconv.Atoi(q.Get("offset"))
+	if offset < 0 || offset > 10_000 {
+		offset = 0
+	}
 	out := []txRow{}
 	err := s.db.InScope(r.Context(), scope(r), func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
 			SELECT t.id, t.trace_id, t.name, p.slug, t.op, t.status, t.start_ts, t.duration_ms, t.release, t.environment, t.tags
 			FROM transactions t JOIN projects p ON p.id = t.project_id
 			WHERE t.start_ts >= $1 AND t.name = $2 AND ($3 = '' OR p.slug = $3)
-			ORDER BY `+order+` LIMIT 100`, periodStart(r), q.Get("name"), q.Get("project"))
+			ORDER BY `+order+`, t.id LIMIT 100 OFFSET $4`, periodStart(r), q.Get("name"), q.Get("project"), offset)
 		if err != nil {
 			return err
 		}
@@ -160,7 +208,7 @@ func (s *Server) getTrace(w http.ResponseWriter, r *http.Request) {
 		}
 		rows.Close()
 		rows, err = tx.Query(r.Context(), `SELECT issue_id, id, title, level, timestamp FROM events
-			WHERE tags->>'trace_id' = $1 ORDER BY timestamp LIMIT 100`, traceID)
+			WHERE trace_id = $1 ORDER BY timestamp LIMIT 100`, traceID)
 		if err != nil {
 			return err
 		}
@@ -267,8 +315,13 @@ func (s *Server) getMonitor(w http.ResponseWriter, r *http.Request) {
 		if m, err = pgx.CollectOneRow(rows, pgx.RowToStructByPos[Monitor]); err != nil {
 			return err
 		}
+		// Older check-ins: ?before=<startedAt of the last one shown>.
+		before := time.Now().Add(time.Hour)
+		if b, err := time.Parse(time.RFC3339Nano, r.URL.Query().Get("before")); err == nil {
+			before = b
+		}
 		rows, err = tx.Query(r.Context(), `SELECT id, status, started_at, finished_at, duration_ms, environment, details
-			FROM monitor_checkins WHERE monitor_id = $1 ORDER BY started_at DESC LIMIT 100`, id)
+			FROM monitor_checkins WHERE monitor_id = $1 AND started_at < $2 ORDER BY started_at DESC LIMIT 100`, id, before)
 		if err != nil {
 			return err
 		}

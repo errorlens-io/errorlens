@@ -130,56 +130,81 @@ type LogLine struct {
 	Attributes  map[string]string `json:"attributes"`
 }
 
-// listLogs: ?project=slug &severity=error (minimum) &query=text &before=RFC3339 &after=RFC3339 &limit=100
+// listLogs: ?project=slug &severity=error (minimum) &query=text &trace=id
+// &before=RFC3339 &after=RFC3339 &limit=100. Without &after, only the last
+// 30 days are searched.
 func (s *Server) listLogs(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	where := []string{"true"}
-	var args []any
-	arg := func(v any) string { args = append(args, v); return "$" + strconv.Itoa(len(args)) }
-	if p := q.Get("project"); p != "" {
-		where = append(where, "p.slug = "+arg(p))
-	}
+	var minSev *int
 	if sev := q.Get("severity"); sev != "" {
 		n := map[string]int{"trace": 1, "debug": 5, "info": 9, "warn": 13, "error": 17, "fatal": 21}[sev]
 		if n == 0 {
 			writeError(w, http.StatusBadRequest, "invalid severity")
 			return
 		}
-		where = append(where, "l.severity_number >= "+arg(n))
+		minSev = &n
 	}
-	if text := strings.TrimSpace(q.Get("query")); text != "" {
-		like := "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(text) + "%"
-		a := arg(like)
-		where = append(where, "(l.body ILIKE "+a+" OR l.attributes::text ILIKE "+a+")")
-	}
-	if t := q.Get("trace"); t != "" {
-		where = append(where, "l.trace_id = "+arg(t))
-	}
-	for _, b := range []struct{ param, op string }{{"before", "<"}, {"after", ">"}} {
-		if v := q.Get(b.param); v != "" {
+	var bounds [2]*time.Time // before, after
+	for i, param := range []string{"before", "after"} {
+		if v := q.Get(param); v != "" {
 			t, err := time.Parse(time.RFC3339Nano, v)
 			if err != nil {
-				writeError(w, http.StatusBadRequest, "invalid "+b.param)
+				writeError(w, http.StatusBadRequest, "invalid "+param)
 				return
 			}
-			where = append(where, "l.timestamp "+b.op+" "+arg(t))
+			bounds[i] = &t
 		}
 	}
-	if q.Get("after") == "" {
-		// Bound the scan to the retention window's recent part by default.
-		where = append(where, "l.timestamp > now() - interval '30 days'")
+	if bounds[1] == nil {
+		t := time.Now().Add(-30 * 24 * time.Hour)
+		bounds[1] = &t
 	}
 	limit, _ := strconv.Atoi(q.Get("limit"))
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
+	project, trace := nullIfEmpty(q.Get("project")), nullIfEmpty(q.Get("trace"))
+	text := searchText(q.Get("query"))
+
+	const cols = `l.id, l.timestamp, p.slug, l.severity, l.body, l.trace_id, l.release, l.environment, l.attributes`
+	var sql string
+	args := []any{project, minSev, trace, bounds[0], bounds[1], limit}
+	if text != "" {
+		// Substring search: log_search finds the matching keys with the
+		// trigram index (see migration 0009); rows are then read through RLS.
+		like := "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(text) + "%"
+		args = append(args, like)
+		sql = `SELECT ` + cols + `
+			FROM log_search($7, (SELECT id FROM projects WHERE slug = $1), $2, $3, $4, $5, $6) k
+			JOIN logs l ON l.project_id = k.project_id AND l.timestamp = k.ts AND l.id = k.id
+			JOIN projects p ON p.id = l.project_id
+			ORDER BY l.timestamp DESC, l.id DESC`
+	} else {
+		// Only the filters in use go into the SQL, so every combination gets
+		// its own (cached) plan instead of one generic plan for all.
+		args = args[:0]
+		arg := func(v any) string { args = append(args, v); return "$" + strconv.Itoa(len(args)) }
+		where := []string{"l.timestamp > " + arg(*bounds[1])}
+		if project != nil {
+			where = append(where, "p.slug = "+arg(*project))
+		}
+		if minSev != nil {
+			where = append(where, "l.severity_number >= "+arg(*minSev))
+		}
+		if trace != nil {
+			where = append(where, "l.trace_id = "+arg(*trace))
+		}
+		if bounds[0] != nil {
+			where = append(where, "l.timestamp < "+arg(*bounds[0]))
+		}
+		sql = `SELECT ` + cols + `
+			FROM logs l JOIN projects p ON p.id = l.project_id
+			WHERE ` + strings.Join(where, " AND ") + `
+			ORDER BY l.timestamp DESC, l.id DESC LIMIT ` + strconv.Itoa(limit)
+	}
 	out := []LogLine{}
 	err := s.db.InScope(r.Context(), scope(r), func(tx pgx.Tx) error {
-		rows, err := tx.Query(r.Context(), `
-			SELECT l.id, l.timestamp, p.slug, l.severity, l.body, l.trace_id, l.release, l.environment, l.attributes
-			FROM logs l JOIN projects p ON p.id = l.project_id
-			WHERE `+strings.Join(where, " AND ")+`
-			ORDER BY l.timestamp DESC, l.id DESC LIMIT `+strconv.Itoa(limit), args...)
+		rows, err := tx.Query(r.Context(), sql, args...)
 		if err != nil {
 			return err
 		}
@@ -196,6 +221,13 @@ func (s *Server) listLogs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+func nullIfEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
 // --- releases ------------------------------------------------------------------------------------
 
 // Release summary.
@@ -209,9 +241,14 @@ type Release struct {
 	Files      int64      `json:"files"`
 }
 
+// listReleases: ?project=slug &offset=n, most recently active first.
 func (s *Server) listReleases(w http.ResponseWriter, r *http.Request) {
 	out := []Release{}
 	project := r.URL.Query().Get("project")
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	if offset < 0 || offset > 100_000 {
+		offset = 0
+	}
 	err := s.db.InScope(r.Context(), scope(r), func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
 			SELECT rl.version, p.slug, rl.first_event, rl.last_event, rl.created_at,
@@ -219,7 +256,7 @@ func (s *Server) listReleases(w http.ResponseWriter, r *http.Request) {
 			       (SELECT count(*) FROM artifacts a WHERE a.project_id = rl.project_id AND a.release = rl.version)
 			FROM releases rl JOIN projects p ON p.id = rl.project_id
 			WHERE ($1 = '' OR p.slug = $1)
-			ORDER BY COALESCE(rl.last_event, rl.created_at) DESC LIMIT 100`, project)
+			ORDER BY COALESCE(rl.last_event, rl.created_at) DESC LIMIT `+strconv.Itoa(pageSize)+` OFFSET $2`, project, offset)
 		if err != nil {
 			return err
 		}

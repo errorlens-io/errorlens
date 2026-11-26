@@ -106,10 +106,30 @@ export function MonitorDetailPage({ org, id, role }: { org: string; id: string; 
   const [d, setD] = useState<{ monitor: Monitor; checkins: CheckIn[] } | null>(null);
   const [error, setError] = useState("");
   const [dsn, setDsn] = useState("");
-  useEffect(() => { api.monitor(org, id).then(setD).catch((e) => setError(e.message)); }, [org, id]);
+  const [more, setMore] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   useEffect(() => {
-    if (d?.monitor.kind === "cron") api.projects(org).then((ps) => setDsn(ps.find((p) => p.slug === d.monitor.project)?.dsn ?? ""));
-  }, [org, d]);
+    let current = true;
+    api.monitor(org, id).then((r) => { if (current) { setD(r); setMore(r.checkins.length >= 100); } }).catch((e) => current && setError(e.message));
+    return () => { current = false; };
+  }, [org, id]);
+  const kind = d?.monitor.kind, project = d?.monitor.project;
+  useEffect(() => {
+    if (kind === "cron") api.projects(org).then((ps) => setDsn(ps.find((p) => p.slug === project)?.dsn ?? ""));
+  }, [org, kind, project]);
+  const older = async () => {
+    if (!d?.checkins.length || loadingOlder) return;
+    setLoadingOlder(true);
+    try {
+      const r = await api.monitor(org, id, d.checkins[d.checkins.length - 1].startedAt);
+      setD({ ...d, checkins: [...d.checkins, ...r.checkins] });
+      setMore(r.checkins.length >= 100);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
   if (error) return <p className="error">{error}</p>;
   if (!d) return <p className="muted">Loading…</p>;
   const m = d.monitor;
@@ -152,6 +172,7 @@ export function MonitorDetailPage({ org, id, role }: { org: string; id: string; 
             </tbody>
           </table>
         )}
+        {more && <div className="pager"><button className="ghost" disabled={loadingOlder} onClick={older}>{loadingOlder ? "Loading…" : "Load older"}</button></div>}
       </section>
     </>
   );

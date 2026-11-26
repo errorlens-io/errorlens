@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { usePaged } from "../paged";
 import { api, Project, TraceView, TxRow, TxSummary } from "../api";
-import { linkProps, setQuery, base } from "../router";
+import { linkProps, setQuery, base, PAGE_SIZE } from "../router";
 import { Empty, formatCount, TimeAgo } from "../ui";
 
 const offset = (d: number) => (d < 0 ? `−${ms(-d)}` : `+${ms(d)}`);
@@ -18,8 +19,11 @@ export function PerformancePage({ org, search }: { org: string; search: string }
   useEffect(() => { api.projects(org).then(setProjects).catch(() => {}); }, [org]);
   useEffect(() => {
     if (name) return;
+    let current = true; // a newer period/project makes this response stale
     setRows(null);
-    api.performance(org, { period, project }).then(setRows).catch((e) => setError(e.message));
+    setError("");
+    api.performance(org, { period, project }).then((r) => current && setRows(r)).catch((e) => current && setError(e.message));
+    return () => { current = false; };
   }, [org, period, project, name]);
 
   const filters = (
@@ -67,8 +71,11 @@ export function PerformancePage({ org, search }: { org: string; search: string }
 }
 
 function TransactionList({ org, name, period, project, filters }: { org: string; name: string; period: string; project: string; filters: React.ReactNode }) {
-  const [rows, setRows] = useState<TxRow[] | null>(null);
-  useEffect(() => { api.transactions(org, { name, period, project }).then(setRows).catch(() => setRows([])); }, [org, name, period, project]);
+  const offset = useRef(0);
+  const { items: rows, error, pager } = usePaged<TxRow>(async (after) => {
+    offset.current = after ? offset.current + PAGE_SIZE : 0;
+    return api.transactions(org, { name, period, project, offset: offset.current || undefined });
+  }, [org, name, period, project]);
   const max = Math.max(1, ...(rows ?? []).map((r) => r.durationMs));
   return (
     <>
@@ -76,6 +83,7 @@ function TransactionList({ org, name, period, project, filters }: { org: string;
       <div className="page-head"><h1 className="mono">{name}</h1></div>
       {filters}
       <p className="muted small">Slowest first. Open one to see where the time went.</p>
+      {error && <p className="error">{error}</p>}
       <div className="card flush">
         <table className="kv">
           <tbody>
@@ -91,6 +99,7 @@ function TransactionList({ org, name, period, project, filters }: { org: string;
           </tbody>
         </table>
       </div>
+      {pager}
     </>
   );
 }

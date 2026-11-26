@@ -1,3 +1,4 @@
+import { usePaged } from "../paged";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api, AuditEntry, Invitation, Member, Organization, Project, ProjectSettings } from "../api";
 import { linkProps, navigate, base } from "../router";
@@ -223,9 +224,7 @@ function Members({ org }: { org: Organization }) {
 }
 
 function AuditLog({ org }: { org: string }) {
-  const [entries, setEntries] = useState<AuditEntry[] | null>(null);
-  const [error, setError] = useState("");
-  useEffect(() => { api.auditLog(org).then(setEntries).catch((e) => setError(e.message)); }, [org]);
+  const { items: entries, error, pager } = usePaged<AuditEntry>((after) => api.auditLog(org, after?.id), [org]);
   if (error) return <p className="error">{error}</p>;
   return (
     <section className="card">
@@ -244,6 +243,7 @@ function AuditLog({ org }: { org: string }) {
           ))}
         </tbody>
       </table>
+      {pager}
     </section>
   );
 }

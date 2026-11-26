@@ -21,25 +21,41 @@ export function LogsPage({ org, search }: { org: string; search: string }) {
   useEffect(() => { api.projects(org).then(setProjects).catch(() => {}); }, [org]);
 
   useEffect(() => {
+    let current = true; // a newer filter makes this response stale
     setLines(null);
+    setError("");
     api.logs(org, { project, severity, query, trace })
-      .then((l) => { setLines(l); newest.current = l[0]?.timestamp ?? ""; })
-      .catch((e) => setError(e.message));
+      .then((l) => { if (current) { setLines(l); newest.current = l[0]?.timestamp ?? ""; } })
+      .catch((e) => current && setError(e.message));
+    return () => { current = false; };
   }, [org, project, severity, query, trace]);
 
-  // Live tail: poll for lines newer than the newest one shown.
+  // Live tail: poll for lines newer than the newest one shown. The next poll
+  // starts only after the previous one finished, and polling pauses while the
+  // tab is in the background.
   useEffect(() => {
     if (!live) return;
-    const id = setInterval(async () => {
-      try {
-        const fresh = await api.logs(org, { project, severity, query, trace, after: newest.current || undefined });
-        if (fresh.length) {
-          newest.current = fresh[0].timestamp;
-          setLines((old) => [...fresh, ...(old ?? [])].slice(0, 1000));
-        }
-      } catch { /* keep polling */ }
-    }, 3000);
-    return () => clearInterval(id);
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      if (!document.hidden) {
+        try {
+          const fresh = await api.logs(org, { project, severity, query, trace, after: newest.current || undefined });
+          if (!stopped && fresh.length) {
+            newest.current = fresh[0].timestamp;
+            setLines((old) => {
+              const seen = new Set((old ?? []).map((l) => l.id));
+              return [...fresh.filter((l) => !seen.has(l.id)), ...(old ?? [])].slice(0, 1000);
+            });
+          }
+        } catch { /* keep polling */ }
+      }
+      if (!stopped) timer = setTimeout(poll, 3000);
+    };
+    timer = setTimeout(poll, 3000);
+    const onVisible = () => { if (!document.hidden) { clearTimeout(timer); poll(); } };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { stopped = true; clearTimeout(timer); document.removeEventListener("visibilitychange", onVisible); };
   }, [live, org, project, severity, query, trace]);
 
   useEffect(() => {
@@ -47,10 +63,22 @@ export function LogsPage({ org, search }: { org: string; search: string }) {
     return () => clearTimeout(t);
   }, [text, query]);
 
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [noMore, setNoMore] = useState(false);
+  useEffect(() => setNoMore(false), [org, project, severity, query, trace]);
   const older = async () => {
-    if (!lines?.length) return;
-    const more = await api.logs(org, { project, severity, query, trace, before: lines[lines.length - 1].timestamp });
-    setLines([...lines, ...more]);
+    if (!lines?.length || loadingOlder) return;
+    setLoadingOlder(true);
+    try {
+      const more = await api.logs(org, { project, severity, query, trace, before: lines[lines.length - 1].timestamp });
+      const seen = new Set(lines.map((l) => l.id));
+      setLines([...lines, ...more.filter((l) => !seen.has(l.id))]);
+      if (more.length < 100) setNoMore(true);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoadingOlder(false);
+    }
   };
 
   return (
@@ -107,7 +135,7 @@ export function LogsPage({ org, search }: { org: string; search: string }) {
               ))}
             </tbody>
           </table>
-          {lines.length >= 100 && <div className="pager"><button className="ghost" onClick={older}>Load older</button></div>}
+          {lines.length >= 100 && !noMore && <div className="pager"><button className="ghost" disabled={loadingOlder} onClick={older}>{loadingOlder ? "Loading…" : "Load older"}</button></div>}
         </div>
       )}
     </>

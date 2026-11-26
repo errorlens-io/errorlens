@@ -75,6 +75,44 @@ func TestPerformanceAndTraceView(t *testing.T) {
 		t.Fatalf("performance = %s", body)
 	}
 
+	// Long periods read the rollups: same counts and failure rate, and
+	// percentiles within one 8% histogram bucket of the exact values.
+	exact := *checkout
+	// A retried (duplicate) transaction must not be counted twice.
+	dup := fmt.Sprintf(`{"type":"transaction","event_id":"%032x","transaction":"GET /checkout","start_timestamp":%f,"timestamp":%f,
+		"contexts":{"trace":{"trace_id":"%s","span_id":"b7ad6b7169203331","op":"http.server","status":"ok"}}}`, 1, now, now+0.120, trace)
+	a.req("POST", "/api/"+seq+"/envelope/", []byte(fmt.Sprintf("{}\n{\"type\":\"transaction\",\"length\":%d}\n%s\n", len(dup), dup)), auth)
+	a.drain()
+	for _, period := range []string{"7d", "30d"} {
+		code, body := a.req("GET", "/api/0/organizations/acme/performance?period="+period, nil, nil)
+		var long []struct {
+			Name        string
+			Count       int
+			P50, P95    float64
+			FailureRate float64
+		}
+		if err := json.Unmarshal(body, &long); err != nil || code != 200 {
+			t.Fatalf("performance %s = %d %s", period, code, body)
+		}
+		var got *struct {
+			Name        string
+			Count       int
+			P50, P95    float64
+			FailureRate float64
+		}
+		for i := range long {
+			if long[i].Name == "GET /checkout" {
+				got = &long[i]
+			}
+		}
+		if got == nil || got.Count != 3 || got.FailureRate < 0.33 || got.FailureRate > 0.34 {
+			t.Fatalf("performance %s = %s", period, body)
+		}
+		if diff := got.P95/exact.P95 - 1; diff < -0.09 || diff > 0.09 {
+			t.Fatalf("performance %s p95 = %.1f, exact %.1f", period, got.P95, exact.P95)
+		}
+	}
+
 	code, body := a.req("GET", "/api/0/organizations/acme/traces/"+trace, nil, nil)
 	var tr struct {
 		Transactions []struct {

@@ -1,12 +1,15 @@
-import { useEffect, useState } from "react";
+import { useRef } from "react";
+import { usePaged } from "../paged";
 import { api, Release } from "../api";
-import { linkProps, base } from "../router";
+import { linkProps, base, PAGE_SIZE } from "../router";
 import { Empty, TimeAgo } from "../ui";
 
 export function ReleasesPage({ org, project }: { org: string; project?: string }) {
-  const [releases, setReleases] = useState<Release[] | null>(null);
-  const [error, setError] = useState("");
-  useEffect(() => { api.releases(org, project || undefined).then(setReleases).catch((e) => setError(e.message)); }, [org, project]);
+  const offset = useRef(0);
+  const { items: releases, error, pager } = usePaged<Release>(async (after) => {
+    offset.current = after ? offset.current + PAGE_SIZE : 0;
+    return api.releases(org, project || undefined, offset.current || undefined);
+  }, [org, project]);
   return (
     <>
       <div className="page-head"><h1>Releases</h1></div>
@@ -30,6 +33,7 @@ export function ReleasesPage({ org, project }: { org: string; project?: string }
           </table>
         </div>
       )}
+      {pager}
     </>
   );
 }

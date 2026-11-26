@@ -33,6 +33,12 @@ func Open(ctx context.Context, url string) (*DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse database url: %w", err)
 	}
+	// pgx defaults to max(4, CPUs) connections, which a busy server outgrows:
+	// the job listener holds one, workers and requests share the rest.
+	// pool_max_conns in the URL still wins.
+	if !strings.Contains(url, "pool_max_conns") && cfg.MaxConns < 20 {
+		cfg.MaxConns = 20
+	}
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("connect: %w", err)

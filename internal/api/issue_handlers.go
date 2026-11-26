@@ -62,10 +62,11 @@ func (s *Server) listIssues(w http.ResponseWriter, r *http.Request) {
 	if p := q.Get("project"); p != "" {
 		where = append(where, "p.slug = "+arg(p))
 	}
-	if text := strings.TrimSpace(q.Get("query")); text != "" {
+	if text := searchText(q.Get("query")); text != "" {
 		like := "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(text) + "%"
 		a := arg(like)
-		where = append(where, "(i.title ILIKE "+a+" OR i.culprit ILIKE "+a+")")
+		// issue_search_ids uses the trigram index (see migration 0009).
+		where = append(where, "i.id IN (SELECT issue_search_ids("+a+"))")
 	}
 	order := "i.last_seen DESC"
 	switch q.Get("sort") {
@@ -86,13 +87,19 @@ func (s *Server) listIssues(w http.ResponseWriter, r *http.Request) {
 	if offset < 0 {
 		offset = 0
 	}
+	if offset > maxIssueTotal {
+		offset = maxIssueTotal
+	}
 
 	issues := []Issue{}
 	var total int64
 	err := s.db.InScope(r.Context(), scope(r), func(tx pgx.Tx) error {
 		cond := strings.Join(where, " AND ")
-		if err := tx.QueryRow(r.Context(),
-			`SELECT count(*) FROM issues i JOIN projects p ON p.id = i.project_id WHERE `+cond, args...).Scan(&total); err != nil {
+		// Counting stops at maxIssueTotal: exact totals over huge lists cost a
+		// full scan and nobody pages that far.
+		if err := tx.QueryRow(r.Context(), `SELECT count(*) FROM (
+			SELECT 1 FROM issues i JOIN projects p ON p.id = i.project_id WHERE `+cond+`
+			LIMIT `+strconv.Itoa(maxIssueTotal+1)+`) s`, args...).Scan(&total); err != nil {
 			return err
 		}
 		rows, err := tx.Query(r.Context(), `SELECT `+issueColumns+`
@@ -112,44 +119,60 @@ func (s *Server) listIssues(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Err(); err != nil {
 			return err
 		}
-		return s.fillTrends(r, tx, issues, 24, time.Hour)
+		return s.fillTrends(r, tx, issues, 24, 1)
 	})
 	if err != nil {
 		s.internalError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"issues": issues, "total": total})
+	capped := total > maxIssueTotal
+	if capped {
+		total = maxIssueTotal
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"issues": issues, "total": total, "totalCapped": capped})
 }
 
-// fillTrends loads per-bucket counts for the given issues.
-func (s *Server) fillTrends(r *http.Request, tx pgx.Tx, issues []Issue, buckets int, size time.Duration) error {
+// maxIssueTotal bounds the issue count shown with lists ("10,000+").
+const maxIssueTotal = 10_000
+
+// fillTrends sets each issue's Trend to its event counts in `buckets`
+// consecutive buckets of `size` hours, ending with the current hour. The
+// bucketing happens in SQL, so only the finished arrays cross the wire.
+func (s *Server) fillTrends(r *http.Request, tx pgx.Tx, issues []Issue, buckets, size int) error {
 	if len(issues) == 0 {
 		return nil
 	}
 	ids := make([]int64, len(issues))
-	idx := map[int64]int{}
+	idx := make(map[int64]int, len(issues))
 	for i := range issues {
 		ids[i] = issues[i].ID
 		idx[issues[i].ID] = i
-		issues[i].Trend = make([]int64, buckets)
 	}
 	end := time.Now().UTC().Truncate(time.Hour).Add(time.Hour)
-	start := end.Add(-time.Duration(buckets) * size)
-	rows, err := tx.Query(r.Context(), `SELECT issue_id, bucket, count FROM issue_counts
-		WHERE issue_id = ANY($1) AND bucket >= $2`, ids, start)
+	start := end.Add(-time.Duration(buckets*size) * time.Hour)
+	rows, err := tx.Query(r.Context(), `
+		WITH c AS (
+			SELECT issue_id, floor(extract(epoch FROM bucket - $2::timestamptz) / ($4 * 3600))::int AS k, sum(count) AS n
+			FROM issue_counts
+			WHERE issue_id = ANY($1) AND bucket >= $2
+			GROUP BY 1, 2
+		)
+		SELECT ids.id, array_agg(COALESCE(c.n, 0)::bigint ORDER BY g.k)
+		FROM unnest($1::bigint[]) AS ids(id)
+		CROSS JOIN generate_series(0, $3::int - 1) AS g(k)
+		LEFT JOIN c ON c.issue_id = ids.id AND c.k = g.k
+		GROUP BY ids.id`, ids, start, buckets, size)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var id, n int64
-		var b time.Time
-		if err := rows.Scan(&id, &b, &n); err != nil {
+		var id int64
+		var trend []int64
+		if err := rows.Scan(&id, &trend); err != nil {
 			return err
 		}
-		if k := int(b.Sub(start) / size); k >= 0 && k < buckets {
-			issues[idx[id]].Trend[k] += n
-		}
+		issues[idx[id]].Trend = trend
 	}
 	return rows.Err()
 }
@@ -189,15 +212,10 @@ func (s *Server) getIssue(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		list := []Issue{is}
-		if err := s.fillTrends(r, tx, list, 14*24, time.Hour); err != nil {
+		if err := s.fillTrends(r, tx, list, 14, 24); err != nil {
 			return err
 		}
-		// Collapse hourly counts into 14 daily buckets.
-		daily := make([]int64, 14)
-		for i, n := range list[0].Trend {
-			daily[i/24] += n
-		}
-		is.Trend = daily
+		is.Trend = list[0].Trend
 
 		rows, err := tx.Query(r.Context(), `
 			WITH recent AS (

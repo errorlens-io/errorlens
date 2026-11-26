@@ -10,8 +10,10 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -72,6 +74,11 @@ func (s *Server) Handler() http.Handler {
 	r.Use(realIP(s.cfg.TrustedProxies))
 	r.Use(middleware.Recoverer)
 	r.Use(securityHeaders)
+	// Compress API JSON and the dashboard's files (5-10x smaller). Length-based
+	// attacks on compressed responses (BREACH) need the victim's browser to
+	// send authenticated cross-site requests; the session cookie is SameSite=Lax,
+	// so such requests carry no session.
+	r.Use(middleware.Compress(5, "application/json", "text/html", "text/css", "application/javascript", "text/javascript", "image/svg+xml"))
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	r.Get("/readyz", s.readyz)
@@ -296,4 +303,34 @@ func clientIP(r *http.Request) string {
 		return r.RemoteAddr
 	}
 	return host
+}
+
+// pageSize is the page length of lists paged with ?before= or ?offset=.
+const pageSize = 100
+
+// beforeID reads the ?before= keyset cursor (an id); 0 means the first page.
+func beforeID(r *http.Request) int64 {
+	n, err := strconv.ParseInt(r.URL.Query().Get("before"), 10, 64)
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
+}
+
+// maxSearchLen bounds search text so one request can't make the database
+// match very long patterns against every row.
+const maxSearchLen = 200
+
+// searchText trims a search box value and cuts it to maxSearchLen bytes
+// (on a character boundary).
+func searchText(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) <= maxSearchLen {
+		return s
+	}
+	s = s[:maxSearchLen]
+	for len(s) > 0 && !utf8.ValidString(s) {
+		s = s[:len(s)-1]
+	}
+	return s
 }

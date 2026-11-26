@@ -36,6 +36,8 @@ Each row is one transaction name — usually an endpoint such as `POST /api/chec
 
 Choose the period — **1 hour**, **24 hours**, **7 days** or **30 days** — and filter by project, or open a project's path such as `/checkout-api/performance`.
 
+The 1-hour and 24-hour views are computed from every individual request. The 7-day and 30-day views read hourly and daily summaries instead, so they load instantly however much traffic you have: counts, throughput and failure rates are exact, and p50 and p95 are within 4% of the exact value.
+
 ## One endpoint
 
 Click a transaction name to list its individual requests, slowest first, with their duration, status, release and environment. Open one to see where the time went.

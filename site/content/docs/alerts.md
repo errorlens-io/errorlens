@@ -38,7 +38,7 @@ Narrow a rule with:
 - **Minimum level** — e.g. *error and above* to skip warnings
 - **Environment** — e.g. `production`; leave empty for any
 
-Then tick the destinations to send to and click **Add rule**. Untick **Enabled** to pause a rule without deleting it.
+Then tick the destinations to send to and click **Add rule**. Untick **Enabled** to pause a rule without deleting it. New and changed rules take effect within 15 seconds.
 
 ### Avoiding noise
 
@@ -48,7 +48,7 @@ Then tick the destinations to send to and click **Add rule**. Untick **Enabled**
 
 ## What a notification contains
 
-Every notification names the reason (*New issue*, *Regression*, *Spike: 120 events in 5 min*), the project, the issue title and culprit, its level and event count, and a link straight to the issue in your dashboard.
+Every notification names the reason (*New issue*, *Regression*, *Spike: 50+ events in 5 min*), the project, the issue title and culprit, its level and event count, and a link straight to the issue in your dashboard.
 
 ## Webhooks
 

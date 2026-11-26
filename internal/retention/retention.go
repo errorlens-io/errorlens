@@ -80,10 +80,13 @@ func Once(ctx context.Context, d *db.DB, now time.Time) error {
 
 		}
 		// Drop whole partitions older than the longest retention of any project.
-		var maxDays int
-		if err := tx.QueryRow(ctx, `SELECT COALESCE(max(retention_days), 30) FROM projects`).Scan(&maxDays); err != nil {
+		var maxDays, minDays int
+		if err := tx.QueryRow(ctx, `SELECT COALESCE(max(retention_days), 30), COALESCE(min(retention_days), 30) FROM projects`).Scan(&maxDays, &minDays); err != nil {
 			return err
 		}
+		// No project keeps anything newer than this, so the per-project deletes
+		// below only need to look at partitions older than it.
+		oldest := now.AddDate(0, 0, -minDays)
 		cutoff := today.AddDate(0, 0, -maxDays)
 		rows, err := tx.Query(ctx, `
 			SELECT c.relname FROM pg_inherits i
@@ -110,28 +113,46 @@ func Once(ctx context.Context, d *db.DB, now time.Time) error {
 		// Per-project retention for rows still inside kept partitions.
 		if _, err := tx.Exec(ctx, `
 			DELETE FROM events e USING projects p
-			WHERE e.project_id = p.id AND e.received_at < $1::timestamptz - make_interval(days => p.retention_days)`, now); err != nil {
+			WHERE e.project_id = p.id AND e.received_at < $2 AND e.received_at < $1::timestamptz - make_interval(days => p.retention_days)`, now, oldest); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `
 			DELETE FROM issues i USING projects p
-			WHERE i.project_id = p.id AND i.last_seen < $1::timestamptz - make_interval(days => p.retention_days)`, now); err != nil {
+			WHERE i.project_id = p.id AND i.last_seen < $2 AND i.last_seen < $1::timestamptz - make_interval(days => p.retention_days)`, now, oldest); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `
 			DELETE FROM logs l USING projects p
-			WHERE l.project_id = p.id AND l.timestamp < $1::timestamptz - make_interval(days => p.retention_days)`, now); err != nil {
+			WHERE l.project_id = p.id AND l.timestamp < $2 AND l.timestamp < $1::timestamptz - make_interval(days => p.retention_days)`, now, oldest); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `
 			DELETE FROM transactions t USING projects p
-			WHERE t.project_id = p.id AND t.start_ts < $1::timestamptz - make_interval(days => p.retention_days)`, now); err != nil {
+			WHERE t.project_id = p.id AND t.start_ts < $2 AND t.start_ts < $1::timestamptz - make_interval(days => p.retention_days)`, now, oldest); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `DELETE FROM monitor_checkins WHERE started_at < $1::timestamptz - interval '90 days'`, now); err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `DELETE FROM issue_counts WHERE bucket < $1::timestamptz - make_interval(days => $2)`, now, maxDays)
-		return err
+		// Tables that grow without bound unless trimmed.
+		for _, q := range []struct {
+			sql  string
+			args []any
+		}{
+			{`DELETE FROM issue_counts WHERE bucket < $1::timestamptz - make_interval(days => $2)`, []any{now, maxDays}},
+			{`DELETE FROM perf_hourly WHERE hour < $1::timestamptz - make_interval(days => $2)`, []any{now, maxDays}},
+			{`DELETE FROM perf_daily_hist WHERE day < ($1::timestamptz - make_interval(days => $2))::date`, []any{now, maxDays}},
+			{`DELETE FROM sessions WHERE expires_at < $1`, []any{now}},
+			{`DELETE FROM user_tokens WHERE expires_at < $1`, []any{now}},
+			{`DELETE FROM invitations WHERE expires_at < $1`, []any{now}},
+			{`DELETE FROM alert_history WHERE created_at < $1::timestamptz - interval '90 days'`, []any{now}},
+			// Jobs that used up their attempts stay a week for inspection.
+			{`DELETE FROM jobs WHERE attempts >= max_attempts AND run_at < $1::timestamptz - interval '7 days'`, []any{now}},
+		} {
+			if _, err := tx.Exec(ctx, q.sql, q.args...); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }

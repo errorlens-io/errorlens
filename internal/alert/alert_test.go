@@ -111,7 +111,7 @@ func TestNewIssueAndRegressionAlerts(t *testing.T) {
 		}
 		return out
 	}
-	if r := reasons(); len(r) != 2 || r[0] != "New issue" || !strings.HasPrefix(r[1], "Spike: 3 events") {
+	if r := reasons(); len(r) != 2 || r[0] != "New issue" || !strings.HasPrefix(r[1], "Spike: 3+ events") {
 		t.Fatalf("reasons = %v", r)
 	}
 	if !strings.HasPrefix(sigs[0], "sha256=") {

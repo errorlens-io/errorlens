@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AlertChannel, AlertHistory, AlertRule, api, Project } from "../api";
 import { linkProps, base } from "../router";
+import { usePaged } from "../paged";
 import { Empty, TimeAgo } from "../ui";
 
 const TRIGGERS: Record<AlertRule["trigger"], string> = {
@@ -12,15 +13,15 @@ const TRIGGERS: Record<AlertRule["trigger"], string> = {
 export function AlertsPage({ org }: { org: string }) {
   const [channels, setChannels] = useState<AlertChannel[]>([]);
   const [rules, setRules] = useState<AlertRule[]>([]);
-  const [history, setHistory] = useState<AlertHistory[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [error, setError] = useState("");
 
   const load = useCallback(() => {
-    Promise.all([api.channels(org), api.rules(org), api.alertHistory(org), api.projects(org)])
-      .then(([c, r, h, p]) => { setChannels(c); setRules(r); setHistory(h); setProjects(p); })
+    Promise.all([api.channels(org), api.rules(org), api.projects(org)])
+      .then(([c, r, p]) => { setChannels(c); setRules(r); setProjects(p); })
       .catch((e) => setError(e.message));
   }, [org]);
+  const { items: history, pager: historyPager } = usePaged<AlertHistory>((after) => api.alertHistory(org, after?.id), [org]);
   useEffect(load, [load]);
 
   const run = (fn: () => Promise<unknown>) => async () => {
@@ -80,7 +81,7 @@ export function AlertsPage({ org }: { org: string }) {
 
       <section className="card">
         <h2>Recent notifications</h2>
-        {history.length === 0 ? <Empty title="Nothing sent yet" /> : (
+        {history === null ? <p className="muted">Loading…</p> : history.length === 0 ? <Empty title="Nothing sent yet" /> : (
           <table className="kv">
             <tbody>
               {history.map((h) => (
@@ -94,6 +95,7 @@ export function AlertsPage({ org }: { org: string }) {
             </tbody>
           </table>
         )}
+        {historyPager}
       </section>
     </>
   );

@@ -19,7 +19,7 @@ export function IssuesPage({ org, search }: { org: string; search: string }) {
   const offset = Number(params.get("offset") || 0);
 
   const [projects, setProjects] = useState<Project[]>([]);
-  const [data, setData] = useState<{ issues: Issue[]; total: number } | null>(null);
+  const [data, setData] = useState<{ issues: Issue[]; total: number; totalCapped?: boolean } | null>(null);
   const [error, setError] = useState("");
   const [text, setText] = useState(query);
 
@@ -115,7 +115,7 @@ export function IssuesPage({ org, search }: { org: string; search: string }) {
           </div>
           {data.total > pageSize && (
             <div className="pager">
-              <span className="muted">{offset + 1}–{Math.min(offset + pageSize, data.total)} of {data.total}</span>
+              <span className="muted">{offset + 1}–{Math.min(offset + pageSize, data.total)} of {data.totalCapped ? `${data.total.toLocaleString()}+` : data.total.toLocaleString()}</span>
               <button className="ghost" disabled={offset === 0} onClick={() => setQuery({ offset: String(Math.max(0, offset - pageSize)) })}>Previous</button>
               <button className="ghost" disabled={offset + pageSize >= data.total} onClick={() => setQuery({ offset: String(offset + pageSize) })}>Next</button>
             </div>

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -35,6 +36,47 @@ type Engine struct {
 	Sender *notify.Sender
 	// OrgURL builds dashboard links (see config.Config.OrgURL).
 	OrgURL func(org, path string) string
+
+	mu    sync.Mutex
+	kinds map[uuid.UUID]ruleKinds // per-org cache of enabled rule triggers
+}
+
+// ruleKinds says which triggers an organization's enabled rules use.
+type ruleKinds struct {
+	newIssue, regression, frequency bool
+	expires                         time.Time
+}
+
+// rulesCacheTTL is how long the engine trusts its view of an organization's
+// rules. New or changed rules take effect within this time.
+const rulesCacheTTL = 15 * time.Second
+
+// kindsFor returns the triggers of org's enabled rules (cached).
+func (e *Engine) kindsFor(ctx context.Context, org uuid.UUID) (ruleKinds, error) {
+	e.mu.Lock()
+	k, ok := e.kinds[org]
+	e.mu.Unlock()
+	if ok && time.Now().Before(k.expires) {
+		return k, nil
+	}
+	k = ruleKinds{expires: time.Now().Add(rulesCacheTTL)}
+	err := e.DB.InScope(ctx, db.Scope{OrgID: org}, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT
+			COALESCE(bool_or(trigger = 'new_issue'), false),
+			COALESCE(bool_or(trigger = 'regression'), false),
+			COALESCE(bool_or(trigger = 'frequency'), false)
+			FROM alert_rules WHERE enabled AND cardinality(channel_ids) > 0`).Scan(&k.newIssue, &k.regression, &k.frequency)
+	})
+	if err != nil {
+		return k, err
+	}
+	e.mu.Lock()
+	if e.kinds == nil || len(e.kinds) > 50_000 {
+		e.kinds = map[uuid.UUID]ruleKinds{}
+	}
+	e.kinds[org] = k
+	e.mu.Unlock()
+	return k, nil
 }
 
 type evaluatePayload struct {
@@ -54,9 +96,17 @@ type deliverPayload struct {
 	Message   notify.Message `json:"message"`
 }
 
-// OnOutcome is wired into the event processor: it queues rule evaluation.
+// OnOutcome is wired into the event processor: it queues rule evaluation,
+// but only when one of the organization's rules could fire for this event —
+// most events of most organizations need no evaluation at all.
 func (e *Engine) OnOutcome(ctx context.Context, job *process.Job, ev *process.Event, out process.Outcome) {
-	_, err := queue.Enqueue(ctx, e.DB.Pool, EvaluateJob, evaluatePayload{
+	k, err := e.kindsFor(ctx, job.OrgID)
+	if err != nil {
+		e.Log.Error("alert: load rules", "err", err) // fall through and evaluate
+	} else if !(k.frequency || (k.newIssue && out.New) || (k.regression && out.Regressed)) {
+		return
+	}
+	_, err = queue.Enqueue(ctx, e.DB.Pool, EvaluateJob, evaluatePayload{
 		OrgID: job.OrgID, ProjectID: job.ProjectID, IssueID: out.IssueID,
 		New: out.New, Regressed: out.Regressed, Level: ev.Level, Environment: ev.Environment,
 	}, time.Time{})
@@ -141,13 +191,30 @@ func (e *Engine) Evaluate(ctx context.Context, j queue.Job) error {
 					reason = "Regression"
 				}
 			case "frequency":
-				var n int
-				if err := tx.QueryRow(ctx, `SELECT count(*) FROM events WHERE issue_id = $1 AND received_at > now() - make_interval(mins => $2)`,
-					p.IssueID, r.Window).Scan(&n); err != nil {
+				if r.Threshold <= 0 {
+					break
+				}
+				// Cheap check first: during a spike most events arrive while
+				// the rule is cooling down for this issue.
+				var cooling bool
+				if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM alert_history
+					WHERE rule_id = $1 AND issue_id = $2 AND created_at > now() - make_interval(mins => $3))`,
+					r.ID, p.IssueID, r.Cooldown).Scan(&cooling); err != nil {
 					return err
 				}
-				if r.Threshold > 0 && n >= r.Threshold {
-					reason = fmt.Sprintf("Spike: %d events in %d min", n, r.Window)
+				if cooling {
+					break
+				}
+				// Count only up to the threshold: whether it was reached is all
+				// that matters, and a spike can hold millions of events.
+				var n int
+				if err := tx.QueryRow(ctx, `SELECT count(*) FROM (
+					SELECT 1 FROM events WHERE issue_id = $1 AND received_at > now() - make_interval(mins => $2) LIMIT $3) s`,
+					p.IssueID, r.Window, r.Threshold).Scan(&n); err != nil {
+					return err
+				}
+				if n >= r.Threshold {
+					reason = fmt.Sprintf("Spike: %d+ events in %d min", n, r.Window)
 				}
 			}
 			if reason == "" || len(r.ChannelIDs) == 0 {

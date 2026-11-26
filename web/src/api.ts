@@ -96,7 +96,36 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+// Identical GETs already in flight share one network request.
+const inflight = new Map<string, Promise<unknown>>();
+
+function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  if (method !== "GET") return send<T>(method, path, body);
+  const hit = inflight.get(path);
+  if (hit) return hit as Promise<T>;
+  const p = send<T>(method, path).finally(() => inflight.delete(path));
+  inflight.set(path, p);
+  return p;
+}
+
+// Project lists change rarely but almost every page needs one: keep them
+// for a short while, and forget them whenever projects change.
+const projectCache = new Map<string, { at: number; data: Promise<Project[]> }>();
+const PROJECT_TTL = 60_000;
+function cachedProjects(org: string): Promise<Project[]> {
+  const c = projectCache.get(org);
+  if (c && Date.now() - c.at < PROJECT_TTL) return c.data;
+  const data = request<Project[]>("GET", `/organizations/${org}/projects`);
+  data.catch(() => projectCache.delete(org));
+  projectCache.set(org, { at: Date.now(), data });
+  return data;
+}
+function forgetProjects<T>(org: string, p: Promise<T>): Promise<T> {
+  projectCache.delete(org);
+  return p.finally(() => projectCache.delete(org));
+}
+
+async function send<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api/0${path}`, {
     method,
     credentials: "same-origin",
@@ -141,11 +170,12 @@ export const api = {
   billingPortal: (org: string) => request<{ url: string }>("POST", `/organizations/${org}/billing/portal`, {}),
   performance: (org: string, p: { period?: string; project?: string; query?: string; sort?: string }) =>
     request<TxSummary[]>("GET", `/organizations/${org}/performance${qs(p)}`),
-  transactions: (org: string, p: { name: string; period?: string; project?: string; sort?: string }) =>
+  transactions: (org: string, p: { name: string; period?: string; project?: string; sort?: string; offset?: number }) =>
     request<TxRow[]>("GET", `/organizations/${org}/transactions${qs(p)}`),
   trace: (org: string, id: string) => request<TraceView>("GET", `/organizations/${org}/traces/${id}`),
   monitors: (org: string) => request<Monitor[]>("GET", `/organizations/${org}/monitors`),
-  monitor: (org: string, id: string) => request<{ monitor: Monitor; checkins: CheckIn[] }>("GET", `/organizations/${org}/monitors/${id}`),
+  monitor: (org: string, id: string, before?: string) =>
+    request<{ monitor: Monitor; checkins: CheckIn[] }>("GET", `/organizations/${org}/monitors/${id}${qs({ before })}`),
   saveMonitor: (org: string, b: Partial<Monitor>, id?: string) =>
     request<{ id: string }>(id ? "PUT" : "POST", `/organizations/${org}/monitors${id ? `/${id}` : ""}`, b),
   deleteMonitor: (org: string, id: string) => request<void>("DELETE", `/organizations/${org}/monitors/${id}`),
@@ -153,12 +183,12 @@ export const api = {
   adminUpdateOrg: (id: string, plan: string, quota: number | null) => request<{ ok: boolean }>("PUT", `/admin/organizations/${id}`, { plan, quota }),
   logout: () => request<void>("POST", "/auth/logout", {}),
   me: () => request<{ user: User; organizations: Organization[] }>("GET", "/auth/me"),
-  projects: (org: string) => request<Project[]>("GET", `/organizations/${org}/projects`),
+  projects: (org: string) => cachedProjects(org),
   createProject: (org: string, name: string, platform: string) =>
-    request<Project>("POST", `/organizations/${org}/projects`, { name, platform }),
+    forgetProjects(org, request<Project>("POST", `/organizations/${org}/projects`, { name, platform })),
 
   issues: (org: string, p: { status?: string; project?: string; query?: string; sort?: string; offset?: number }) =>
-    request<{ issues: Issue[]; total: number }>("GET", `/organizations/${org}/issues${qs(p)}`),
+    request<{ issues: Issue[]; total: number; totalCapped?: boolean }>("GET", `/organizations/${org}/issues${qs(p)}`),
   issue: (org: string, id: number) =>
     request<{ issue: Issue; tags: TagSummary[] }>("GET", `/organizations/${org}/issues/${id}`),
   setIssueStatus: (org: string, id: number, status: IssueStatus) =>
@@ -170,11 +200,12 @@ export const api = {
 
   projectSettings: (org: string, p: string) => request<ProjectSettings>("GET", `/organizations/${org}/projects/${p}/`),
   saveProjectSettings: (org: string, p: string, b: Omit<ProjectSettings, "id" | "slug" | "keys">) =>
-    request<{ ok: boolean }>("PUT", `/organizations/${org}/projects/${p}/`, b),
-  deleteProject: (org: string, p: string) => request<void>("DELETE", `/organizations/${org}/projects/${p}/`),
-  createKey: (org: string, p: string, label: string) => request<{ ok: boolean }>("POST", `/organizations/${org}/projects/${p}/keys`, { label }),
+    forgetProjects(org, request<{ ok: boolean }>("PUT", `/organizations/${org}/projects/${p}/`, b)),
+  deleteProject: (org: string, p: string) => forgetProjects(org, request<void>("DELETE", `/organizations/${org}/projects/${p}/`)),
+  createKey: (org: string, p: string, label: string) =>
+    forgetProjects(org, request<{ ok: boolean }>("POST", `/organizations/${org}/projects/${p}/keys`, { label })),
   setKeyActive: (org: string, p: string, id: string, active: boolean) =>
-    request<{ ok: boolean }>("PUT", `/organizations/${org}/projects/${p}/keys/${id}`, { active }),
+    forgetProjects(org, request<{ ok: boolean }>("PUT", `/organizations/${org}/projects/${p}/keys/${id}`, { active })),
 
   channels: (org: string) => request<AlertChannel[]>("GET", `/organizations/${org}/alerts/channels`),
   createChannel: (org: string, b: { kind: string; name: string; url?: string; secret?: string; emails?: string[] }) =>
@@ -185,7 +216,7 @@ export const api = {
   saveRule: (org: string, b: Partial<AlertRule> & { project?: string }, id?: string) =>
     request<{ id: string }>(id ? "PUT" : "POST", `/organizations/${org}/alerts/rules${id ? `/${id}` : ""}`, b),
   deleteRule: (org: string, id: string) => request<void>("DELETE", `/organizations/${org}/alerts/rules/${id}`),
-  alertHistory: (org: string) => request<AlertHistory[]>("GET", `/organizations/${org}/alerts/history`),
+  alertHistory: (org: string, before?: number) => request<AlertHistory[]>("GET", `/organizations/${org}/alerts/history${qs({ before })}`),
 
   members: (org: string) => request<{ members: Member[]; invitations: Invitation[] }>("GET", `/organizations/${org}/members`),
   invite: (org: string, email: string, role: string) =>
@@ -193,11 +224,12 @@ export const api = {
   revokeInvite: (org: string, email: string) => request<void>("DELETE", `/organizations/${org}/invitations/${encodeURIComponent(email)}`),
   setMemberRole: (org: string, userId: string, role: string) => request<void>("PUT", `/organizations/${org}/members/${userId}`, { role }),
   removeMember: (org: string, userId: string) => request<void>("DELETE", `/organizations/${org}/members/${userId}`),
-  auditLog: (org: string) => request<AuditEntry[]>("GET", `/organizations/${org}/audit-log`),
+  auditLog: (org: string, before?: number) => request<AuditEntry[]>("GET", `/organizations/${org}/audit-log${qs({ before })}`),
 
   logs: (org: string, p: { project?: string; severity?: string; query?: string; before?: string; after?: string; trace?: string }) =>
     request<LogLine[]>("GET", `/organizations/${org}/logs${qs(p)}`),
-  releases: (org: string, project?: string) => request<Release[]>("GET", `/organizations/${org}/releases${qs({ project })}`),
+  releases: (org: string, project?: string, offset?: number) =>
+    request<Release[]>("GET", `/organizations/${org}/releases${qs({ project, offset })}`),
   tokens: (org: string) => request<APIToken[]>("GET", `/organizations/${org}/tokens`),
   createToken: (org: string, name: string, role: string) => request<{ id: string; token: string }>("POST", `/organizations/${org}/tokens`, { name, role }),
   deleteToken: (org: string, id: string) => request<void>("DELETE", `/organizations/${org}/tokens/${id}`),

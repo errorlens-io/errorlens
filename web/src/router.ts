@@ -116,3 +116,6 @@ let projectRoute: ((slug: string, rest: Record<string, string>) => void) | null 
 export function setProjectRoute(fn: typeof projectRoute) {
   projectRoute = fn;
 }
+
+/** Page length of lists the server pages (?before= / ?offset=). */
+export const PAGE_SIZE = 100;
