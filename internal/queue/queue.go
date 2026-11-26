@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/errorlenshq/errorlens/internal/jsonsafe"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -38,19 +40,81 @@ func Enqueue(ctx context.Context, q Querier, kind string, payload any, runAt tim
 	if err != nil {
 		return 0, err
 	}
+	// jsonb can't hold U+0000; logs and spans from OTLP protobuf can carry raw NULs.
+	body = jsonsafe.NoNUL(body)
 	var at *time.Time
 	if !runAt.IsZero() {
 		at = &runAt
 	}
 	var id int64
-	// The notification wakes idle workers at once (see Worker.listen);
-	// identical notifications in one transaction are delivered only once.
-	err = q.QueryRow(ctx, `
-		WITH ins AS (INSERT INTO jobs (kind, payload, run_at) VALUES ($1, $2, COALESCE($3, now())) RETURNING id),
-		     n AS (SELECT pg_notify('`+notifyChannel+`', ''))
-		SELECT ins.id FROM ins, n`,
+	pool, autocommit := q.(*pgxpool.Pool)
+	if !autocommit {
+		// Inside the caller's transaction: notify in the same statement, so the wake-up is delivered only once
+		// the job is committed and visible (identical notifications in one transaction are sent once).
+		err = q.QueryRow(ctx, `
+			WITH ins AS (INSERT INTO jobs (kind, payload, run_at) VALUES ($1, $2, COALESCE($3, now())) RETURNING id),
+			     n AS (SELECT pg_notify('`+notifyChannel+`', ''))
+			SELECT ins.id FROM ins, n`,
+			kind, body, at).Scan(&id)
+		return id, err
+	}
+	// Autocommit: the job is visible as soon as the insert returns. NOTIFY takes a database-wide lock at
+	// commit, so a notify per insert makes every concurrent enqueue wait in line (at 500 events/s nearly
+	// every connection sat on that lock); one background sender per pool coalesces them instead.
+	err = q.QueryRow(ctx, `INSERT INTO jobs (kind, payload, run_at) VALUES ($1, $2, COALESCE($3, now())) RETURNING id`,
 		kind, body, at).Scan(&id)
+	if err == nil && (at == nil || !at.After(time.Now())) {
+		notifierFor(pool).kick()
+	}
 	return id, err
+}
+
+// notifier sends job notifications for one pool, one at a time: kicks that arrive while a notification is
+// being sent are folded into one more, so a burst of enqueues costs a couple of notifies, never a queue of them.
+type notifier struct {
+	pool    *pgxpool.Pool
+	sending sync.Mutex // held by the goroutine that is sending
+	again   chan struct{}
+}
+
+var notifiers sync.Map // *pgxpool.Pool -> *notifier
+
+func notifierFor(pool *pgxpool.Pool) *notifier {
+	if n, ok := notifiers.Load(pool); ok {
+		return n.(*notifier)
+	}
+	n, _ := notifiers.LoadOrStore(pool, &notifier{pool: pool, again: make(chan struct{}, 1)})
+	return n.(*notifier)
+}
+
+func (n *notifier) kick() {
+	select {
+	case n.again <- struct{}{}:
+	default: // one is already pending; it will cover this job too
+	}
+	if !n.sending.TryLock() {
+		return // the sender will see the pending kick
+	}
+	go func() {
+		for {
+			for {
+				select {
+				case <-n.again:
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					_, _ = n.pool.Exec(ctx, `SELECT pg_notify('`+notifyChannel+`', '')`) // polling covers a failure
+					cancel()
+					continue
+				default:
+				}
+				break
+			}
+			n.sending.Unlock()
+			// a kick that arrived between the last check and Unlock found the lock held: take it back
+			if len(n.again) == 0 || !n.sending.TryLock() {
+				return
+			}
+		}
+	}()
 }
 
 // notifyChannel is the LISTEN/NOTIFY channel announcing runnable jobs.
@@ -79,7 +143,7 @@ func NewWorker(pool *pgxpool.Pool, log *slog.Logger) *Worker {
 		handlers:     map[string]Handler{},
 		PollInterval: 2 * time.Second,
 		LockFor:      5 * time.Minute,
-		Concurrency:  4,
+		Concurrency:  16,
 		BatchSize:    10,
 		wake:         make(chan struct{}, 1),
 	}
@@ -155,6 +219,41 @@ func (w *Worker) RunOnce(ctx context.Context) (bool, error) {
 	return n > 0, err
 }
 
+// claim locks up to n runnable jobs for LockFor. The queue churns its whole table every few seconds under
+// load, so the index's head is mostly dead rows until autovacuum comes by. A bitmap scan (which the planner
+// likes for a table it thinks is tiny) reads all of them and sorts, on every claim: 240 ms per claim at
+// 500 events/s. An index scan stops after n ready jobs and marks the dead entries it passes, so later claims
+// skip them: 8 ms. The planner settings apply to this transaction only.
+func (w *Worker) claim(ctx context.Context, n int) ([]Job, error) {
+	var jobs []Job
+	err := pgx.BeginFunc(ctx, w.pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `SELECT set_config('enable_bitmapscan', 'off', true), set_config('enable_seqscan', 'off', true)`); err != nil {
+			return err
+		}
+		rows, err := tx.Query(ctx, `
+			UPDATE jobs SET locked_until = now() + $1::interval, attempts = attempts + 1
+			WHERE id IN (
+				SELECT id FROM jobs
+				WHERE run_at <= now() AND attempts < max_attempts
+				  AND (locked_until IS NULL OR locked_until < now())
+				ORDER BY run_at
+				FOR UPDATE SKIP LOCKED
+				LIMIT $2)
+			RETURNING id, kind, payload, attempts`,
+			fmt.Sprintf("%d seconds", int(w.LockFor.Seconds())), n)
+		if err != nil {
+			return err
+		}
+		jobs, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Job, error) {
+			var j Job
+			err := r.Scan(&j.ID, &j.Kind, &j.Payload, &j.Attempts)
+			return j, err
+		})
+		return err
+	})
+	return jobs, err
+}
+
 // runBatch claims up to n runnable jobs in one statement, runs them in order
 // and deletes the successful ones in one statement. It returns how many jobs
 // it claimed.
@@ -162,25 +261,7 @@ func (w *Worker) runBatch(ctx context.Context, n int) (int, error) {
 	if n < 1 {
 		n = 1
 	}
-	rows, err := w.pool.Query(ctx, `
-		UPDATE jobs SET locked_until = now() + $1::interval, attempts = attempts + 1
-		WHERE id IN (
-			SELECT id FROM jobs
-			WHERE run_at <= now() AND attempts < max_attempts
-			  AND (locked_until IS NULL OR locked_until < now())
-			ORDER BY run_at
-			FOR UPDATE SKIP LOCKED
-			LIMIT $2)
-		RETURNING id, kind, payload, attempts`,
-		fmt.Sprintf("%d seconds", int(w.LockFor.Seconds())), n)
-	if err != nil {
-		return 0, err
-	}
-	jobs, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Job, error) {
-		var j Job
-		err := r.Scan(&j.ID, &j.Kind, &j.Payload, &j.Attempts)
-		return j, err
-	})
+	jobs, err := w.claim(ctx, n)
 	if err != nil {
 		return 0, err
 	}

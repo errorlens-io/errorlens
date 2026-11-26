@@ -34,10 +34,10 @@ func Open(ctx context.Context, url string) (*DB, error) {
 		return nil, fmt.Errorf("parse database url: %w", err)
 	}
 	// pgx defaults to max(4, CPUs) connections, which a busy server outgrows:
-	// the job listener holds one, workers and requests share the rest.
-	// pool_max_conns in the URL still wins.
-	if !strings.Contains(url, "pool_max_conns") && cfg.MaxConns < 20 {
-		cfg.MaxConns = 20
+	// the job listener holds one, the workers (16 by default) and requests
+	// share the rest. pool_max_conns in the URL still wins.
+	if !strings.Contains(url, "pool_max_conns") && cfg.MaxConns < 32 {
+		cfg.MaxConns = 32
 	}
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
@@ -111,6 +111,10 @@ func (d *DB) Migrate(ctx context.Context) (applied []string, err error) {
 type Scope struct {
 	OrgID  uuid.UUID // uuid.Nil = no organization selected
 	UserID uuid.UUID // uuid.Nil = anonymous
+	// AsyncCommit lets COMMIT return before the WAL reaches disk, so row locks are released sooner. Only for
+	// queue jobs whose writes are idempotent: the job's own deletion is a synchronous commit later in the WAL,
+	// so once a job is gone its writes are durable, and a crash before that just runs the job again.
+	AsyncCommit bool
 }
 
 // InScope runs fn in a transaction as the restricted application role with
@@ -127,13 +131,17 @@ func (d *DB) InScope(ctx context.Context, s Scope, fn func(pgx.Tx) error) error 
 
 // ApplyScope drops the current transaction to the application role with the
 // given scope. It cannot be undone within the transaction.
+//
+// One round trip: set_config('role', name, true) is SET LOCAL ROLE, with the same permission check.
 func ApplyScope(ctx context.Context, tx pgx.Tx, s Scope) error {
-	if _, err := tx.Exec(ctx, `SET LOCAL ROLE `+AppRole); err != nil {
-		return fmt.Errorf("set role: %w", err)
+	commit := "on"
+	if s.AsyncCommit {
+		commit = "off"
 	}
 	if _, err := tx.Exec(ctx,
-		`SELECT set_config('app.org_id', $1, true), set_config('app.user_id', $2, true)`,
-		uuidOrEmpty(s.OrgID), uuidOrEmpty(s.UserID)); err != nil {
+		`SELECT set_config('role', $1, true), set_config('app.org_id', $2, true), set_config('app.user_id', $3, true),
+		        set_config('synchronous_commit', $4, true)`,
+		AppRole, uuidOrEmpty(s.OrgID), uuidOrEmpty(s.UserID), commit); err != nil {
 		return fmt.Errorf("set scope: %w", err)
 	}
 	return nil

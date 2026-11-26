@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -131,5 +132,44 @@ func TestBatchesAndWakeUp(t *testing.T) {
 	_ = d.Pool.QueryRow(ctx, `SELECT count(*) FROM jobs`).Scan(&left)
 	if left != 0 {
 		t.Fatalf("%d jobs left in the table", left)
+	}
+}
+
+// Notifications are coalesced: a concurrent burst into idle workers must still wake them for every job,
+// with no wake-up lost between the sender finishing and a late enqueue.
+func TestConcurrentBurstWakesIdleWorkers(t *testing.T) {
+	d := testutil.NewDB(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	w := queue.NewWorker(d.Pool, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	w.PollInterval = 30 * time.Second
+	var done atomic.Int64
+	w.Handle("count", func(context.Context, queue.Job) error { done.Add(1); return nil })
+	go w.Run(ctx)
+	time.Sleep(200 * time.Millisecond) // workers idle, listening
+
+	for round := 1; round <= 5; round++ {
+		var wg sync.WaitGroup
+		for g := 0; g < 20; g++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for i := 0; i < 10; i++ {
+					if _, err := queue.Enqueue(ctx, d.Pool, "count", i, time.Time{}); err != nil {
+						t.Error(err)
+					}
+				}
+			}()
+		}
+		wg.Wait()
+		want := int64(round * 200)
+		deadline := time.Now().Add(3 * time.Second)
+		for done.Load() < want {
+			if time.Now().After(deadline) {
+				t.Fatalf("round %d: processed %d of %d jobs", round, done.Load(), want)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		time.Sleep(time.Duration(round*40) * time.Millisecond) // let the workers go idle again
 	}
 }

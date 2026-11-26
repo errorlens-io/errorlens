@@ -283,3 +283,39 @@ func TestEncryptedPayloads(t *testing.T) {
 }
 
 func nowUnix() int64 { return timeNow().Unix() }
+
+// Postgres can't store U+0000: a NUL anywhere in an event, log or span used to fail the whole request with a
+// 503, which SDKs retry forever. It is now stored as U+FFFD.
+func TestNULBytesAreStored(t *testing.T) {
+	a := newApp(t, false)
+	key, seq := a.bootstrap("node")
+	nul, repl := `\u`+"0000", string(rune(0xFFFD))
+	auth := map[string]string{"Content-Type": "application/json", "Authorization": "Bearer " + key}
+
+	ev := `{"message":"a` + nul + `b","release":"r` + nul + `","tags":{"k` + nul + `":"v` + nul + `"},` +
+		`"exception":{"values":[{"type":"Ty` + nul + `pe","value":"x","stacktrace":{"frames":[{"abs_path":"https://x/a` + nul + `.js","filename":"/%00.js","lineno":1}]}}]}}`
+	env := "{}\n{\"type\":\"event\"}\n" + ev + "\n"
+	if code, body := a.req("POST", "/api/"+seq+"/envelope/", []byte(env), auth); code != 200 {
+		t.Fatalf("envelope = %d %s", code, body)
+	}
+	logs := `{"resourceLogs":[{"scopeLogs":[{"logRecords":[{"timeUnixNano":"` + fmt.Sprint(nowUnix()*1e9) +
+		`","severityNumber":17,"body":{"stringValue":"b` + nul + `"},"attributes":[{"key":"k` + nul + `","value":{"stringValue":"v` + nul + `"}}]}]}]}]}`
+	if code, body := a.req("POST", "/v1/logs", []byte(logs), auth); code != 200 {
+		t.Fatalf("otlp logs = %d %s", code, body)
+	}
+	spans := `{"resourceSpans":[{"scopeSpans":[{"spans":[{"traceId":"0102030405060708090a0b0c0d0e0f10","spanId":"0102030405060708",` +
+		`"name":"GET /` + nul + `","kind":2,"startTimeUnixNano":"` + fmt.Sprint(nowUnix()*1e9) + `","endTimeUnixNano":"` + fmt.Sprint(nowUnix()*1e9+5e8) + `"}]}]}]}`
+	if code, body := a.req("POST", "/v1/traces", []byte(spans), auth); code != 200 {
+		t.Fatalf("otlp traces = %d %s", code, body)
+	}
+	a.drain()
+
+	_, body := a.req("GET", "/api/0/organizations/acme/issues", nil, nil)
+	if !strings.Contains(string(body), "Ty"+repl+"pe") {
+		t.Fatalf("issue not stored: %s", body)
+	}
+	_, body = a.req("GET", "/api/0/organizations/acme/logs", nil, nil)
+	if !strings.Contains(string(body), "b"+repl) {
+		t.Fatalf("log not stored: %s", body)
+	}
+}

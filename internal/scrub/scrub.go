@@ -96,9 +96,11 @@ func New(cfg Config) *Scrubber {
 	return s
 }
 
+// keySeparators is built once: building a Replacer per key was a tenth of the server's CPU under load.
+var keySeparators = strings.NewReplacer("-", "", "_", "", " ", "", ".", "")
+
 func normKey(k string) string {
-	k = strings.ToLower(strings.TrimSpace(k))
-	return strings.NewReplacer("-", "", "_", "", " ", "", ".", "").Replace(k)
+	return keySeparators.Replace(strings.ToLower(strings.TrimSpace(k)))
 }
 
 func (s *Scrubber) sensitiveKey(k string) bool {

@@ -35,8 +35,12 @@ type cached struct {
 var mappingURL = regexp.MustCompile(`(?m)^//[#@]\s*sourceMappingURL=(\S+)\s*$`)
 
 // Candidates returns artifact names to try for a frame URL, most specific
-// first: "~/path/file.js" (any host) then the full URL.
+// first: "~/path/file.js" (any host) then the full URL. A path with a NUL
+// byte has none: no real file has one, and Postgres rejects it in text.
 func Candidates(absPath string) []string {
+	if strings.ContainsRune(absPath, 0) {
+		return nil
+	}
 	u, err := url.Parse(absPath)
 	if err != nil || u.Path == "" {
 		return []string{absPath}
@@ -44,6 +48,9 @@ func Candidates(absPath string) []string {
 	p := u.Path
 	if u.Scheme == "app" || u.Scheme == "file" {
 		p = "/" + strings.TrimPrefix(u.Host+u.Path, "/")
+	}
+	if strings.ContainsRune(p, 0) { // a decoded %00
+		return []string{absPath}
 	}
 	return []string{"~" + p, absPath}
 }
@@ -145,6 +152,10 @@ func stacktraces(ev map[string]any) []map[string]any {
 }
 
 func (r *Resolver) consumer(ctx context.Context, org, project uuid.UUID, release, abs string) *sourcemap.Consumer {
+	// NUL separates the cache key's parts and can't be stored in Postgres text: nothing to look up.
+	if strings.ContainsRune(release, 0) || strings.ContainsRune(abs, 0) {
+		return nil
+	}
 	key := project.String() + "\x00" + release + "\x00" + abs
 	r.mu.Lock()
 	if r.cache == nil {

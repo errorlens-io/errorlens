@@ -32,6 +32,9 @@ type Config struct {
 	// FreeEventQuota is the monthly event quota for new organizations created
 	// through sign-up (hosted mode).
 	FreeEventQuota int64
+	// Workers is how many background jobs (event processing, alerts, …) run at once. Processing waits on
+	// Postgres more than on CPU, so this is well above the core count.
+	Workers int
 
 	SMTP SMTP
 
@@ -179,6 +182,10 @@ func Load(getenv func(string) string) (*Config, error) {
 		return nil, fmt.Errorf("ERRORLENS_FREE_EVENT_QUOTA must be a non-negative number")
 	}
 	cfg.FreeEventQuota = q
+	cfg.Workers, err = strconv.Atoi(get("ERRORLENS_WORKERS", "16"))
+	if err != nil || cfg.Workers < 1 || cfg.Workers > 256 {
+		return nil, fmt.Errorf("ERRORLENS_WORKERS must be a number from 1 to 256")
+	}
 
 	cfg.SMTP = SMTP{
 		Host:     get("ERRORLENS_SMTP_HOST", ""),

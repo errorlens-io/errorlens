@@ -16,6 +16,7 @@ ErrorLens is configured with environment variables. With Docker Compose, put the
 | `ERRORLENS_PUBLIC_URL` | `http://localhost:8080` | The address people and SDKs use. Appears in DSNs and email links. Use `https://` in production — it also turns on secure cookies |
 | `ERRORLENS_LISTEN_ADDR` | `:8080` | Address and port to listen on |
 | `ERRORLENS_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
+| `ERRORLENS_WORKERS` | `16` | Background jobs (event processing, alerts) run at once. Raise it on bigger servers; each uses a database connection |
 | `ERRORLENS_SESSION_TTL` | `336h` | How long a sign-in lasts (14 days) |
 | `ERRORLENS_TRUSTED_PROXIES` | | Comma-separated IPs or CIDR ranges of reverse proxies whose `X-Forwarded-For` header is believed |
 

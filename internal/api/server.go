@@ -78,7 +78,19 @@ func (s *Server) Handler() http.Handler {
 	// attacks on compressed responses (BREACH) need the victim's browser to
 	// send authenticated cross-site requests; the session cookie is SameSite=Lax,
 	// so such requests carry no session.
-	r.Use(middleware.Compress(5, "application/json", "text/html", "text/css", "application/javascript", "text/javascript", "image/svg+xml"))
+	// SDK ingest is skipped: its replies are a few bytes, and a compressor per in-flight request (~200 KB
+	// each) is what ran a 512 MB server out of memory at 500 events/s.
+	compress := middleware.Compress(5, "application/json", "text/html", "text/css", "application/javascript", "text/javascript", "image/svg+xml")
+	r.Use(func(next http.Handler) http.Handler {
+		zipped := compress(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if isIngestPath(r.URL.Path) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			zipped.ServeHTTP(w, r)
+		})
+	})
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	r.Get("/readyz", s.readyz)
@@ -208,6 +220,12 @@ func (s *Server) readyz(w http.ResponseWriter, r *http.Request) {
 }
 
 // --- middleware -----------------------------------------------------------
+
+// isIngestPath reports SDK and OpenTelemetry ingest routes: /api/{project}/envelope/ and /store/, /v1/logs and
+// /v1/traces (the dashboard API lives under /api/0/).
+func isIngestPath(p string) bool {
+	return strings.HasPrefix(p, "/v1/") || strings.HasPrefix(p, "/api/") && !strings.HasPrefix(p, "/api/0/")
+}
 
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

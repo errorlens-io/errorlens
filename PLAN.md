@@ -3,7 +3,7 @@
 > **ErrorLens** — open-source, self-hosted error & log tracking.
 > *Your errors, your servers, your eyes only.*
 
-Status: v0.1 · 2026-11-25 — **Phases 0–4 implemented** (see "Implementation status" at the end)
+Status: v1.0 · 2026-11-26 — **Phases 0–3 done, live at errorlens.io**; Phase 4 partly (see "Implementation status" at the end)
 
 ---
 
@@ -321,19 +321,48 @@ errorlens/
 
 ---
 
-## 15. Implementation status (2026-11-25)
+## 15. Implementation status (2026-11-26)
 
 | Phase | Status | Notes |
 |---|---|---|
 | 0 — Foundation | ✅ Done | Go + Postgres, migrations, RLS, job queue, auth, UI shell, Docker, CI |
-| 1 — Errors MVP | ✅ Done | Ingest (envelope/store), scrubbing, grouping, regressions, issues UI, alerts (email/Slack/Discord/webhook), members & invitations, privacy settings, audit log, own SDKs (`errorlens`, `@errorlenshq/node`, `@errorlenshq/browser`) |
+| 1 — Errors MVP | ✅ Done | Ingest (envelope/store), scrubbing, grouping, regressions, issues UI, alerts (email/Slack/Discord/webhook), members & invitations, privacy settings, audit log |
 | 2 — Logs & workflow | ✅ Done | SDK + OTLP logs, releases, JS source maps + upload CLI, API tokens, payload encryption at rest |
-| 3 — Hosted | ✅ Done (code) | Sign-up, email verification, password reset, quotas & usage, Stripe hooks, admin console, TOTP 2FA, OIDC SSO, web/worker roles, Helm chart |
+| 3 — Hosted | ✅ Done, live | errorlens.io (organization subdomains, sign-up, email via Resend), quotas & usage, plan catalog (no limit only on self-hosted servers), admin console, TOTP 2FA, OIDC SSO, web/worker roles, Helm chart. Stripe code ready but not configured |
 | 4 — Beyond | ✅ Partly | Transactions/spans (SDK + OTLP), performance page, trace view, cron + uptime monitors. Not done: ClickHouse adapter, ProGuard/dSYM symbolication, session replay, profiling |
 
+### Released
+- Server image `errorlens/errorlens` 1.0.0 (Docker Hub and `ghcr.io/errorlenshq/errorlens`, amd64 + arm64, SBOM and provenance).
+- Own SDKs, no dependencies: Python `errorlens` 1.0.1 (PyPI), JavaScript `@errorlenshq/core|node|browser` 1.0.4 (npm, provenance), in `errorlenshq/errorlens-python` and `errorlenshq/errorlens-javascript`.
+- Website and docs at errorlens.io (Search Console verified); first real integration: band.pk.
+
+### Next: launch readiness
+- [x] Fuzz the parsers that read untrusted input (envelope, store, OTLP, scrubbing). 13 Go fuzz targets
+  (ingest, process, scrub, logs, perf, monitor, sourcemap, jsonsafe). Found and fixed: any U+0000 in an event,
+  log or span failed the request with a 503 that SDKs retry forever (Postgres can't store it; now U+FFFD), and
+  NUL bytes reaching source-map lookups.
+- [x] Load test against the targets in §10 (2026-11-26; ErrorLens on 2 vCPU / 512 MB, Postgres 17 on its own
+  2 vCPU, Docker Desktop on macOS, realistic gzipped Python error envelopes over 6 projects):
+  - Idle memory: **25–30 MB** (target 512 MB). Under load: 22–37 MB.
+  - Before the fixes the server was OOM-killed at 512 MB within 10 s of 500 events/s (a gzip writer per
+    ingest response), and every enqueue waited in line on Postgres's global NOTIFY lock (p50 1.1 s).
+  - Fixed: no compression on ingest replies; coalesced job notifications; job claims use an index scan
+    (240 ms → 8 ms per claim under churn); aggressive autovacuum on `jobs`; 16 workers by default
+    (`ERRORLENS_WORKERS`); scrubber no longer builds a Replacer per key; release rows updated once a minute;
+    async commit for idempotent event processing.
+  - 500 events/s for 1–2 minutes: every event accepted and processed in real time (backlog < 130),
+    ingest p50 7–11 ms, p95 23–30 ms, **p99 50–56 ms** (target 50 ms — borderline).
+  - 500 events/s for 5 minutes: every event accepted (148,930 / 148,930) and stored, but processing ran at
+    ~330/s while ingest competed for Postgres CPU; the backlog peaked at 41k and cleared 45 s after the load
+    stopped (~900/s). p99 rose to 243 ms. 300 events/s: p99 50 ms.
+- [ ] Reach 500 events/s sustained: Postgres (2 vCPU) is the limit. Each event rewrites its issue row, which has
+  9 indexes and indexed counters (`times_seen`, `last_seen`), so no update is HOT; hot issues pile up tens of
+  thousands of dead versions between autovacuum visits (once a minute). Next: buffer issue counters (e.g. via
+  `issue_counts`, which updates HOT) and fold them into `issues` every few seconds; claim jobs in larger batches.
+- [ ] Prometheus `/metrics` (local only), scheduled backups to S3-compatible storage, `errorlens.yaml`.
+
 ### Not done / needs the owner
-- Buy **errorlens.io**; create GitHub org `errorlenshq` (`errorlens` is taken), Docker Hub `errorlens`, npm scope `@errorlens`, PyPI `errorlens`; then publish the SDKs and image.
-- Stripe account, price IDs and webhook secret for the hosted tier (code is ready, untested against live Stripe).
-- External security review before offering the hosted service.
-- Load testing against the performance targets in §10.
-- Session counts / crash-free rate, attachments, SAML (OIDC covers most identity providers).
+- Stripe account, price IDs and webhook secret for paid plans (code is ready, untested against live Stripe).
+- Alert channels and rules on the hosted org (none configured yet).
+- External security review and bug bounty before promoting the hosted service widely.
+- Later features: merge/unmerge issues, session counts / crash-free rate, attachments, SAML (OIDC covers most identity providers).

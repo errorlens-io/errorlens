@@ -59,6 +59,7 @@ Configuration is read from environment variables (see README):
   ERRORLENS_PUBLIC_URL     External URL, used for DSNs and cookies (default http://localhost:8080)
   ERRORLENS_LISTEN_ADDR    Listen address (default :8080)
   ERRORLENS_LOG_LEVEL      debug | info | warn | error (default info)
+  ERRORLENS_WORKERS        Background jobs run at once (default 16)
   ERRORLENS_SESSION_TTL    Login session lifetime (default 336h)
   ERRORLENS_TRUSTED_PROXIES  Comma-separated proxy IPs/CIDRs whose X-Forwarded-For is trusted
   ERRORLENS_SMTP_HOST, _PORT, _USERNAME, _PASSWORD, _FROM   Outgoing email
@@ -186,6 +187,7 @@ func serve(ctx context.Context, cfg *config.Config, d *db.DB, log *slog.Logger, 
 
 	if role == roleAll || role == roleWorker {
 		worker := queue.NewWorker(d.Pool, log)
+		worker.Concurrency = cfg.Workers
 		worker.Handle(logs.JobKind, logs.Store(d))
 		alerts := &alert.Engine{
 			DB:     d,

@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/errorlenshq/errorlens/internal/jsonsafe"
+
 	"github.com/andybalholm/brotli"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -165,6 +167,10 @@ func (h *Handler) envelope(w http.ResponseWriter, r *http.Request) {
 	var transactions []perf.Transaction
 	for _, it := range env.Items {
 		switch it.Type {
+		case "event", "transaction", "check_in", "log":
+			it.Payload = jsonsafe.NoNUL(it.Payload) // JSON items only: attachments are binary
+		}
+		switch it.Type {
 		case "event":
 			if len(it.Payload) > maxEventSize {
 				h.Log.Debug("ingest: dropping oversized event", "size", len(it.Payload))
@@ -272,7 +278,7 @@ func (h *Handler) store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var ev map[string]any
-	if err := json.Unmarshal(trimmed, &ev); err != nil {
+	if err := json.Unmarshal(jsonsafe.NoNUL(trimmed), &ev); err != nil {
 		fail(w, http.StatusBadRequest, "invalid event JSON")
 		return
 	}

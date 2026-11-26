@@ -84,7 +84,7 @@ func (p *Processor) Process(ctx context.Context, job *Job) (Outcome, error) {
 	// the issue (reopening it if it was resolved), store the event, and bump
 	// the release and the hourly count. xmax = 0 marks a freshly inserted
 	// issue; regressed_at = now() marks one this statement reopened.
-	err = p.DB.InScope(ctx, db.Scope{OrgID: job.OrgID}, func(tx pgx.Tx) error {
+	err = p.DB.InScope(ctx, db.Scope{OrgID: job.OrgID, AsyncCommit: true}, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `
 			WITH dup AS (
 				SELECT 1 FROM events
@@ -112,8 +112,12 @@ func (p *Processor) Process(ctx context.Context, job *Job) (Outcome, error) {
 				                    release, environment, platform, tags, scrubbed, payload, payload_ct)
 				SELECT $3, $1, $2, up.id, $4, $10, $8, $6, $11, $12, $9, $13, $14, $15, $16 FROM up
 			), rel AS (
+				-- Every event of a release would update the same row and queue behind its lock: skip the
+				-- write while the row is already current to the minute.
 				INSERT INTO releases (org_id, project_id, version, first_event, last_event)
-				SELECT $1, $2, $11, $4, $4 FROM up WHERE $11 <> ''
+				SELECT $1, $2, $11, $4, $4 FROM up WHERE $11 <> '' AND NOT EXISTS (
+					SELECT 1 FROM releases r WHERE r.project_id = $2 AND r.version = $11
+					  AND r.first_event <= $4 AND r.last_event >= $4::timestamptz - interval '1 minute')
 				ON CONFLICT (project_id, version) DO UPDATE SET
 					first_event = LEAST(COALESCE(releases.first_event, EXCLUDED.first_event), EXCLUDED.first_event),
 					last_event  = GREATEST(COALESCE(releases.last_event, EXCLUDED.last_event), EXCLUDED.last_event)
