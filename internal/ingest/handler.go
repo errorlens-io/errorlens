@@ -114,7 +114,7 @@ func cors(next http.Handler) http.Handler {
 		hd := w.Header()
 		hd.Set("Access-Control-Allow-Origin", "*")
 		hd.Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		hd.Set("Access-Control-Allow-Headers", "Content-Type, Content-Encoding, "+hdrAuth+", Authorization, X-ErrorLens-Key, "+hdrTrace+", traceparent, baggage")
+		hd.Set("Access-Control-Allow-Headers", "Content-Type, Content-Encoding, "+hdrAuth+", Authorization, X-ErrorLens-Key, "+hdrTrace+", traceparent, tracestate, baggage")
 		hd.Set("Access-Control-Expose-Headers", hdrError+", "+hdrRateLimits+", Retry-After")
 		hd.Set("Access-Control-Max-Age", "3600")
 		next.ServeHTTP(w, r)
